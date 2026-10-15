@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Planificador de clases por proyecto</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#f6f7fb;--card:#fff;--tx:#1b1f2a;--mu:#5c6475;--ac:#4f46e5;--ac2:#eef0ff;--bd:#dfe3ee;--ok:#0f766e}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#12141c;--card:#1b1f2b;--tx:#eceef5;--mu:#9aa3b8;--ac:#8b85ff;--ac2:#262a44;--bd:#2e3446;--ok:#5eead4}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#12141c;--card:#1b1f2b;--tx:#eceef5;--mu:#9aa3b8;--ac:#8b85ff;--ac2:#262a44;--bd:#2e3446;--ok:#5eead4}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+main{max-width:860px;margin:0 auto;padding:20px 16px 60px}
+h1{font-size:1.6rem;margin:.2em 0}h2{font-size:1.1rem;margin:0 0 12px}
+.sub{color:var(--mu);margin:0 0 20px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:18px;margin-bottom:16px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+label{display:block;font-size:.85rem;color:var(--mu);margin-bottom:4px}
+input[type=text],input[type=number]{width:100%;padding:10px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font:inherit}
+.drop{border:2px dashed var(--bd);border-radius:12px;padding:22px;text-align:center;cursor:pointer;background:var(--ac2)}
+.drop b{color:var(--ac)}
+button{background:var(--ac);color:#fff;border:0;border-radius:10px;padding:12px 20px;font:inherit;font-weight:600;cursor:pointer}
+button.sec{background:var(--ac2);color:var(--ac)}
+button:disabled{opacity:.5;cursor:default}
+.row{display:flex;gap:8px;margin-bottom:8px;align-items:center}
+.row span{min-width:28px;color:var(--mu)}
+.msg{font-size:.9rem;color:var(--mu);margin-top:8px}.ok{color:var(--ok)}
+.wk{border-left:4px solid var(--ac);padding:4px 12px;margin:10px 0}
+.wk b{color:var(--ac)}.wk small{color:var(--mu)}
+.chk{display:flex;gap:8px;align-items:center;margin:12px 0;font-size:.92rem}
+.tabs{display:flex;gap:8px;margin-bottom:12px}.tabs button{flex:1;background:var(--ac2);color:var(--ac)}.tabs button.on{background:var(--ac);color:#fff}
+canvas{max-width:100%;height:auto;border:1px solid var(--bd);border-radius:8px;margin-top:12px}.hide{display:none}select{width:100%;padding:10px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font:inherit}input[type=date]{width:100%;padding:10px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font:inherit}
+</style></head>
+<body><main>
+<h1>🎬 Planificador de clases por proyecto</h1>
+<p class="sub">Elige el tipo de planificación, sube el PDF correspondiente y descarga el resultado en PDF o PNG.</p>
+
+<div class="card"><h2>1. ¿Qué quieres planificar?</h2>
+<div class="tabs" style="margin:0"><button id="t1" class="on">📅 Planificación del trimestre</button><button id="t2">📝 Planificación de la clase del día</button></div></div>
+
+<div id="m1">
+<div class="card"><h2>2. Archivo del proyecto</h2>
+<label class="drop" for="f"><b>Haz clic para subir el PDF del proyecto</b><br><span id="fn" class="sub">Ej.: Festival_de_cine.pdf</span></label>
+<input id="f" type="file" accept="application/pdf" hidden>
+<div id="st" class="msg"></div>
+<h2 style="margin-top:16px">Actividades detectadas <small class="sub">(puedes editarlas)</small></h2>
+<div id="acts" class="msg">Sube un PDF para detectar las actividades.</div></div>
+</div>
+
+<div id="m2" class="hide">
+<div class="card"><h2>2. Actividad de TBox</h2>
+<label class="drop" for="f2"><b>Haz clic para subir el PDF de la actividad de TBox</b><br><span id="fn2" class="sub">Ej.: Actividad_1.pdf</span></label>
+<input id="f2" type="file" accept="application/pdf" hidden><div id="st2" class="msg"></div>
+<div class="grid" style="margin-top:12px"><div><label>Nombre de la actividad (se detecta del PDF)</label><input type="text" id="an" placeholder="Ej.: Actividad 1: Investigar"></div>
+<div><label>Fecha de la clase</label><input type="date" id="dc"></div></div>
+<label class="chk"><input type="checkbox" id="ai" checked> Enriquecer los detalles con Claude (si está disponible)</label></div>
+</div>
+
+<div class="card"><h2>3. Datos generales</h2>
+<div class="grid">
+<div><label>Nombre del docente</label><input type="text" id="doc"></div>
+<div><label>Grado</label><input type="text" id="gr" placeholder="Ej.: 8.º"></div>
+<div><label>Nombre del proyecto</label><input type="text" id="pn" placeholder="Ej.: Festival de cine"></div>
+<div class="tri"><label>Fecha de inicio del trimestre</label><input type="date" id="d1"></div>
+<div class="tri"><label>Fecha de finalización</label><input type="date" id="d2"></div>
+<div class="tri"><label>Semanas del trimestre (se calcula con las fechas)</label><input type="number" id="wk" min="1" max="20" value="12"></div>
+<div class="tri"><label>Cantidad de actividades del trimestre</label><input type="number" id="na" min="1" max="30" value="5"></div>
+<div class="day hide"><label>Duración de la clase (minutos)</label><input type="number" id="du" min="10" max="240" value="45"></div>
+</div></div>
+
+<div class="card">
+<button id="g1" disabled>Generar planificación del trimestre</button>
+<button id="g2" class="hide">Generar planificación de clase</button>
+<div id="gs" class="msg"></div>
+<canvas id="cv" class="hide"></canvas>
+<div id="dls" class="row hide" style="margin-top:12px"><button id="dlPdf" class="sec">⬇ Descargar PDF</button><button id="dlPng" class="sec">⬇ Descargar PNG</button></div>
+</div>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+let ACTS=[],INDS={},PDFTXT='',downloads=null,LAST=null;
+const CL=window.claude||{use:async()=>null};
+const FALLBACK={save:async({filename,data})=>{const u=URL.createObjectURL(data instanceof Blob?data:new Blob([data]));const a=document.createElement('a');a.href=u;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000);return{status:'saved'}}};
+if(!window.claude)document.querySelectorAll('.chk').forEach(e=>e.style.display='none');
+CL.use('downloads').then(d=>downloads=d||FALLBACK).catch(()=>downloads=FALLBACK);
+
+const X={q:["¿Qué conexiones ves entre la película y situaciones de la vida real?","¿Qué información de la IA contrastaste con otras fuentes y qué cambiaste?","¿Qué riesgos o errores detectaste al usar herramientas de IA?"],
+df:"Apoyo: ejemplos guiados, plantillas y trabajo en parejas. Ampliación: retos de mayor complejidad o roles de liderazgo en el equipo.",
+t:"Registrar en el portafolio de TBox Academy lo trabajado y responder las preguntas de la actividad."};
+const PH={
+investigar:{o:"Investigar sobre la reseña cinematográfica y el uso de la IA, y elegir la película (con aprobación docente).",i:"Presentar el reto del proyecto y activar conocimientos previos sobre cine e IA.",d:"Investigar en fuentes confiables, elegir la película y registrar hallazgos; contrastar con otras fuentes lo que genera la IA.",c:"Socializar la película elegida y los hallazgos; el docente aprueba la elección.",r:"Navegador web, procesador de textos, herramientas de IA para generar textos.",e:"Registro de la investigación y portafolio en TBox Academy."},
+explorar_t:{o:"Explorar herramientas de IA para obtener ideas y textos, y redactar el guion de la reseña.",i:"Repasar los hallazgos y presentar la estructura del guion y del documento de planificación.",d:"Generar ideas con IA, revisar y mejorar el texto, y añadir el 'toque personal' al guion conectando la película con la vida real.",c:"Compartir fragmentos del guion y retroalimentación entre pares.",r:"Herramientas de IA de texto, procesador de textos.",e:"Documento de planificación y guion revisados (pensamiento crítico)."},
+explorar_m:{o:"Explorar herramientas de IA para crear imágenes, narraciones, animaciones y música para la reseña.",i:"Mostrar ejemplos de recursos generados con IA y comentar sus riesgos.",d:"Generar imágenes y audios con prompts específicos; evaluar si presentan elementos erróneos y descartar o mejorar.",c:"Valorar la pertinencia de los recursos y organizarlos en una carpeta del proyecto.",r:"Herramientas de IA (imágenes, voz, música, animación), sitios de recursos gratuitos.",e:"Banco de recursos y reflexión sobre riesgos de la IA."},
+construir:{o:"Construir el video: organizar recursos en la línea de tiempo y aplicar textos, transiciones y efectos.",i:"Repasar el guion y los elementos de la edición de video.",d:"Montar las escenas en el editor siguiendo el guion; incorporar textos, transiciones, efectos, narración y música.",c:"Visionado de avances y ajustes según retroalimentación.",r:"Editor de video, recursos generados, guion.",e:"Avance del video con la rúbrica (edición y calidad audiovisual)."},
+aplicar:{o:"Presentar y evaluar las reseñas en el Festival de cine escolar.",i:"Preparar el espacio y recordar los criterios de la rúbrica.",d:"Proyectar las reseñas y completar la valoración con la rúbrica (análisis crítico, recursos IA, edición, calidad, originalidad).",c:"Coevaluación, reflexión final y publicación en el canal elegido.",r:"Proyector, rúbrica, canal de YouTube o lista de reproducción institucional.",e:"Rúbrica de evaluación del proyecto."}};
+const IMAP={1:['1.1'],2:['1.1','1.2'],3:['2.1','2.2'],4:['3.1','3.2'],5:['3.1','3.2']};
+function phaseKey(a){const t=(a.fase||'').toLowerCase();
+ if(t.includes('invest'))return'investigar';if(t.includes('constru'))return'construir';if(t.includes('aplic'))return'aplicar';
+ if(t.includes('explor'))return a.n<=2?'explorar_t':'explorar_m';return'investigar';}
+const title=a=>`Actividad ${a.n}: ${a.fase}`;
+
+// fechas
+const pd=v=>v?new Date(v+'T12:00:00'):null,fm=d=>d.toLocaleDateString('es',{day:'2-digit',month:'short'});
+function calcW(){const a=pd($('d1').value),b=pd($('d2').value);if(a&&b&&b>=a)$('wk').value=Math.max(1,Math.ceil(((b-a)/864e5+1)/7));}
+$('d1').onchange=$('d2').onchange=calcW;
+function wkRange(i){const a=pd($('d1').value),b=pd($('d2').value);if(!a)return'';const s=new Date(a);s.setDate(s.getDate()+7*i);const e=new Date(s);e.setDate(e.getDate()+6);
+ return fm(s)+' – '+fm(b&&e>b?b:e);}
+
+// pestañas
+function tab(n){$('m1').classList.toggle('hide',n!=1);$('m2').classList.toggle('hide',n!=2);$('t1').classList.toggle('on',n==1);$('t2').classList.toggle('on',n==2);
+ document.querySelectorAll('.tri').forEach(e=>e.classList.toggle('hide',n!=1));document.querySelectorAll('.day').forEach(e=>e.classList.toggle('hide',n!=2));
+ $('g1').classList.toggle('hide',n!=1);$('g2').classList.toggle('hide',n!=2);$('cv').classList.add('hide');$('dls').classList.add('hide');$('gs').textContent='';}
+$('t1').onclick=()=>tab(1);$('t2').onclick=()=>tab(2);
+
+// PDF
+$('f').onchange=async e=>{const file=e.target.files[0];if(!file)return;
+ $('fn').textContent=file.name;$('st').textContent='Leyendo PDF…';$('st').className='msg';
+ try{pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  const pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;let tx='';
+  for(let p=1;p<=pdf.numPages;p++){const c=await(await pdf.getPage(p)).getTextContent();tx+=c.items.map(i=>i.str).join(' ')+'\n';}
+  PDFTXT=tx.replace(/\s+/g,' ');parse();
+ }catch(err){$('st').textContent='No se pudo leer el PDF automáticamente; agrega las actividades manualmente.';manual();}};
+function parse(){const seen={};ACTS=[];
+ for(const m of PDFTXT.matchAll(/Actividad\s*(\d+)\s+([A-Za-zÁÉÍÓÚáéíóúñ]+)/g)){const n=+m[1];if(!seen[n]){seen[n]=1;ACTS.push({n,fase:m[2]});}}
+ ACTS.sort((a,b)=>a.n-b.n);INDS={};
+ for(const m of PDFTXT.matchAll(/Indicador\s+(\d\.\d)\.\s+(.+?\.)(?=\s)/g))INDS[m[1]]=m[2];
+ const t=PDFTXT.match(/\d\d\/\d\d\/\d\d,\s*\d\d:\d\d\s+(.+?)\s+https?:/);$('pn').value=t?t[1]:'';
+ if(!ACTS.length){$('st').textContent='No se detectaron actividades; agrégalas manualmente.';return manual();}
+ $('st').textContent=`✔ ${ACTS.length} actividades y ${Object.keys(INDS).length} indicadores detectados.`;$('st').className='msg ok';
+ $('na').value=ACTS.length;draw();}
+function manual(){ACTS=[1,2,3].map(n=>({n,fase:'Investigar'}));draw();}
+function draw(){$('acts').innerHTML='';
+ ACTS.forEach((a,i)=>{const r=document.createElement('div');r.className='row';r.innerHTML=`<span>${a.n}.</span><input type="text" data-i="${i}">`;
+  const inp=r.querySelector('input');inp.value=a.fase;inp.oninput=e=>{ACTS[i].fase=e.target.value;};$('acts').appendChild(r);});
+ $('g1').disabled=false;}
+
+function schedule(W,N){const out=[];let prev=-1;
+ for(let i=0;i<W;i++){const s=Math.floor(i*N/W),e=Math.max(s,Math.ceil((i+1)*N/W)-1);const l=[];
+  for(let k=s;k<=e&&k<N;k++)l.push({k,cont:k===prev&&k===s});prev=e;out.push(l);}return out;}
+
+// ---------- motor de dibujo (PNG/PDF) ----------
+const PW=1240,PHT=1754,M=60,CW=PW-2*M,FN='system-ui,Arial,sans-serif';let NAME='planificacion';
+function renderDoc(blocks){const cv=$('cv'),c=cv.getContext('2d');
+ const wrap=(t,w)=>{const o=[];String(t).split('\n').forEach(p=>{let l='';p.split(' ').forEach(wd=>{const n=l?l+' '+wd:wd;if(c.measureText(n).width>w&&l){o.push(l);l=wd}else l=n});o.push(l)});return o};
+ function run(dr){let y=0;const ens=h=>{const o=y%PHT;if(o>0&&o+h>PHT-M)y=(Math.floor(y/PHT)+1)*PHT;if(y%PHT===0)y+=M};
+  for(const b of blocks){
+   if(b.t==='title'){c.font='20px '+FN;if(dr){c.fillStyle='#4f46e5';c.fillRect(0,0,PW,170);c.fillStyle='#fff';c.font='bold 40px '+FN;c.fillText(b.x,M,70);c.font='20px '+FN;wrap(b.s,CW).slice(0,3).forEach((l,i)=>c.fillText(l,M,108+i*26))}y=200}
+   else if(b.t==='h'){ens(80);y+=14;if(dr){c.font='bold 25px '+FN;c.fillStyle='#4f46e5';c.fillText(b.x,M,y+24);c.fillRect(M,y+34,CW,2)}y+=52}
+   else if(b.t==='p'||b.t==='li'){c.font='19px '+FN;const ind=b.t==='li'?24:0;wrap(b.x,CW-ind).forEach((l,i)=>{ens(30);if(dr){c.font='19px '+FN;c.fillStyle='#1b1f2a';if(ind&&i===0)c.fillText('•',M+6,y+20);c.fillText(l,M+ind,y+20)}y+=28});y+=6}
+   else if(b.t==='tb'){const cw=b.w.map(f=>f*CW);b.rows.forEach((r,ri)=>{const hd=b.hdr&&ri===0;c.font='17px '+FN;
+     const cl=r.map((x,i)=>{const o=typeof x==='object'?x:{t:x};return{o,l:wrap(o.t,cw[i]-20)}});const h=Math.max(...cl.map(z=>z.l.length))*24+16;ens(h);
+     if(dr){let x=M;cl.forEach((z,i)=>{const bd=hd||(i===0&&b.fc);c.fillStyle=hd?'#e6e8ff':(z.o.f||(bd?'#f3f4fb':'#fff'));c.fillRect(x,y,cw[i],h);c.strokeStyle='#cfd4e4';c.strokeRect(x,y,cw[i],h);c.fillStyle='#1b1f2a';c.font=(bd?'bold ':'')+'17px '+FN;z.l.forEach((l,k)=>c.fillText(l,x+10,y+26+k*24));x+=cw[i]})}
+     y+=h});y+=14}}
+  return y}
+ const H=run(false);cv.width=PW;cv.height=Math.max(1,Math.ceil(H/PHT))*PHT;c.fillStyle='#fff';c.fillRect(0,0,PW,cv.height);run(true);cv.classList.remove('hide')}
+async function exportPdf(){const cv=$('cv'),pdf=new window.jspdf.jsPDF({unit:'mm',format:'a4'}),n=cv.height/PHT;
+ for(let i=0;i<n;i++){const t=document.createElement('canvas');t.width=PW;t.height=PHT;t.getContext('2d').drawImage(cv,0,-i*PHT);if(i)pdf.addPage();pdf.addImage(t.toDataURL('image/jpeg',.92),'JPEG',0,0,210,297)}
+ return pdf.output('blob')}
+const save=async(fn,data)=>{try{await downloads.save({filename:fn,data})}catch(e){if(e.code!=='declined')$('gs').textContent='No se pudo guardar ('+(e.code||'error')+').'}};
+$('dlPdf').onclick=async()=>save(NAME+'.pdf',await exportPdf());
+$('dlPng').onclick=async()=>save(NAME+'.png',await new Promise(r=>$('cv').toBlob(r,'image/png')));
+function done(msg,name){NAME=name;$('gs').textContent=msg;$('gs').className='msg ok';if(downloads)$('dls').classList.remove('hide');else $('gs').textContent+=' (La descarga no está disponible en esta vista.)'}
+const H1=x=>({t:'h',x}),P1=x=>({t:'p',x}),L1=x=>({t:'li',x});
+const info=()=>[$('pn').value&&'Proyecto: '+$('pn').value,'Docente: '+($('doc').value||'—'),'Grado: '+($('gr').value||'—')].filter(Boolean).join(' · ');
+
+// ---------- Trimestre ----------
+const COL=['#e0e7ff','#cffafe','#d1fae5','#fef3c7','#fce7f3','#ede9fe','#fee2e2','#ccfbf1'];
+const EV={investigar:{f:'Lista de cotejo de la investigación y de la elección de la película (fuentes contrastadas).',s:''},
+explorar_t:{f:'Revisión entre pares del guion con preguntas guía.',s:'Guion de la reseña (rúbrica: análisis crítico y conexión con la vida real).'},
+explorar_m:{f:'Bitácora de prompts y revisión de errores en imágenes y audios generados con IA.',s:'Banco de recursos generados con IA (rúbrica: recursos multimedia y pertinencia).'},
+construir:{f:'Avance del video en la línea de tiempo con lista de cotejo.',s:'Video editado (rúbrica: edición y montaje, calidad audiovisual).'},
+aplicar:{f:'Coevaluación durante el festival de cine.',s:'Reseña final evaluada con la rúbrica del proyecto (5 criterios).'}};
+$('g1').onclick=()=>{const W=+$('wk').value,N=Math.min(+$('na').value,ACTS.length);if(!W||!N){$('gs').textContent='Completa semanas y actividades.';return}
+ const acts=ACTS.slice(0,N),sch=schedule(W,N),ev=acts.map(a=>EV[phaseKey(a)]||EV.investigar);
+ const last=acts.map((_,k)=>{let m=-1;sch.forEach((w,i)=>{if(w.some(x=>x.k===k))m=i});return m});
+ let sums=ev.map((e,k)=>e.s?k:-1).filter(k=>k>=0);if(!sums.length)sums=[N-1];const S=new Set(sums);
+ const rows=[['Semana','Fechas','Actividad','Evaluación sumativa sugerida (70 %)','Evaluación formativa sugerida (30 %)']];
+ sch.forEach((w,i)=>rows.push(['Semana '+(i+1),wkRange(i)||'—',{t:w.map(o=>title(acts[o.k])+(o.cont?' (cont.)':'')).join('\n'),f:COL[w[0].k%COL.length]},
+  w.filter(o=>S.has(o.k)&&last[o.k]===i).map(o=>ev[o.k].s||'Producto final de la actividad con rúbrica.').join('\n')||'—',
+  w.map(o=>o.cont?'Seguimiento y retroalimentación continua.':ev[o.k].f).join('\n')]));
+ const a=pd($('d1').value),b=pd($('d2').value),wt=sums.map((_,i)=>Math.floor(70/sums.length)+(i<70%sums.length?1:0));
+ const B=[{t:'title',x:'Planificación del trimestre',s:`${info()} · ${a&&b?fm(a)+' al '+fm(b)+' · ':''}${W} semanas`},
+  H1('Calendario semanal y evaluaciones sugeridas'),{t:'tb',hdr:1,fc:1,w:[.1,.13,.2,.32,.25],rows},
+  H1('Resumen de calificaciones sugerido'),P1('Las evaluaciones sumativas son las más importantes: valen 70 % de la nota del trimestre.'),
+  ...sums.map((k,i)=>L1(`Sumativa (${wt[i]} %), semana ${last[k]+1}: ${ev[k].s||'Producto final de la actividad con rúbrica.'}`)),
+  L1(`Evaluaciones formativas (30 %): ${N} registros de seguimiento que se promedian; sirven para retroalimentar y mejorar el proceso.`),
+  P1('Sugerencia: aplica las formativas durante las clases para ajustar la enseñanza y reserva las sumativas para los productos entregados en el portafolio de TBox Academy.')];
+ renderDoc(B);done('✔ Planificación del trimestre lista.','Planificacion_trimestre')};
+
+// ---------- Clase del día ----------
+let ACTTXT='';
+async function pdfText(file){pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+ const pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;let tx='';
+ for(let p=1;p<=pdf.numPages;p++){const c=await(await pdf.getPage(p)).getTextContent();tx+=c.items.map(i=>i.str).join(' ')+'\n'}return tx.replace(/\s+/g,' ')}
+$('f2').onchange=async e=>{const f=e.target.files[0];if(!f)return;$('fn2').textContent=f.name;$('st2').textContent='Leyendo PDF…';$('st2').className='msg';
+ try{ACTTXT=await pdfText(f);if(ACTTXT.length<50)throw 0;$('st2').textContent='✔ Actividad leída.';$('st2').className='msg ok';
+  const m=ACTTXT.match(/Actividad\s*(\d+)\s*[:\-–.]?\s*([A-Za-zÁÉÍÓÚáéíóúñ]+)?/);if(m)$('an').value='Actividad '+m[1]+(m[2]&&/invest|explor|constru|aplic/i.test(m[2])?': '+m[2]:'')}
+ catch(x){ACTTXT='';$('st2').textContent='No se pudo extraer texto de ese PDF.'}};
+const RUB={investigar:['Análisis crítico de la película','Contraste de fuentes e información generada con IA','Planificación y organización','Ciudadanía digital (uso crítico y seguro de la IA)'],
+explorar_t:['Análisis crítico de la película','Guion: estructura y elementos requeridos','Toque personal y originalidad','Conexión con la vida real'],
+explorar_m:['Recursos multimedia generados con IA','Pertinencia y revisión de errores en las imágenes','Uso de prompts específicos','Originalidad y creatividad'],
+construir:['Edición y montaje','Calidad audiovisual','Recursos multimedia generados con IA','Originalidad y creatividad'],
+aplicar:['Análisis crítico de la película','Recursos multimedia generados con IA','Edición y montaje','Originalidad y creatividad']};
+const LV=['Cumple de forma sobresaliente, con argumentos sólidos y originalidad.','Cumple adecuadamente; hay detalles menores por mejorar.','Cumple parcialmente; requiere mayor desarrollo y ejemplos.','No evidencia el criterio o es insuficiente.'];
+$('g2').onclick=async()=>{const an=$('an').value.trim(),m=an.match(/Actividad\s*(\d+)\s*[:\-–.]?\s*(.*)/i),a=m?{n:+m[1],fase:m[2]||an}:{n:0,fase:an},T=an,dur=+$('du').value;
+ if(!ACTTXT){$('gs').textContent='Sube primero el PDF de la actividad de TBox.';$('gs').className='msg';return}
+ if(!an||!dur){$('gs').textContent='Indica el nombre de la actividad y la duración.';return}
+ const pk=phaseKey(a),p=PH[pk],ini=Math.round(dur*.15),cie=Math.round(dur*.15),rc=RUB[pk]||RUB.investigar;
+ const d={a,dur,min:[ini,dur-ini-cie,cie],ind:(IMAP[a.n]||[]).filter(k=>INDS[k]).map(k=>`${k} ${INDS[k]}`),objetivo:p.o,inicio:p.i,desarrollo:p.d,cierre:p.c,recursos:p.r,preguntas:X.q,diferenciacion:X.df,tarea:X.t,
+  fecha:$('dc').value?pd($('dc').value).toLocaleDateString('es',{weekday:'long',day:'numeric',month:'long',year:'numeric'}):'—',
+  rubrica:rc.map(c=>({criterio:c,niveles:LV})),
+  formativa:{nombre:'Lista de cotejo y ticket de salida',descripcion:'Observación durante la clase y una pregunta de salida para verificar la comprensión. Sirve para retroalimentar y no pondera en la nota.',criterios:rc.slice(0,3),retroalimentacion:'devolver comentarios al grupo al cierre y ajustar la próxima clase.'},
+  sumativa:{nombre:'Producto de la '+T,descripcion:'Evidencia entregada en el portafolio de TBox Academy, calificada con la rúbrica.',pesos:[25,25,25,25]}};
+ $('gs').textContent='Generando…';$('gs').className='msg';$('g2').disabled=true;
+ if($('ai').checked){try{const sm=await CL.use('sample');if(sm){
+  const pr=`Eres asesor pedagógico. Proyecto escolar (resumen):\n"""${PDFTXT.slice(0,2500)}"""\nGuía de TBox de la actividad:\n"""${ACTTXT.slice(0,5000)}"""\nRedacta en español una planificación EXHAUSTIVA para UNA clase de ${dur} minutos de la "${T}", basada en la guía. Responde SOLO con un objeto JSON (sin markdown) con claves: objetivo, inicio, desarrollo (pasos concretos con tiempos), cierre, recursos, indicadores (arreglo de 2 a 3 indicadores de logro), preguntas (arreglo de 4 preguntas de pensamiento crítico), diferenciacion, tarea, rubrica (arreglo de 4 objetos {criterio, niveles:[4 descriptores: Excelente, Bueno, Regular, Necesita mejorar]}), formativa ({nombre, descripcion, criterios:[3], retroalimentacion}), sumativa ({nombre, descripcion, pesos:[4 números que suman 100, uno por criterio de la rúbrica]}).`;
+  const r=await sm(pr,{modelTier:'default'});const j=JSON.parse(r.text.replace(/```json|```/g,'').trim());
+  for(const k of ['objetivo','inicio','desarrollo','cierre','recursos','diferenciacion','tarea'])if(typeof j[k]==='string'&&j[k])d[k]=j[k];
+  if(Array.isArray(j.preguntas)&&j.preguntas.length)d.preguntas=j.preguntas.map(String);
+  if(!d.ind.length&&Array.isArray(j.indicadores))d.ind=j.indicadores.map(String);
+  if(Array.isArray(j.rubrica)&&j.rubrica.length===4&&j.rubrica.every(r=>r.criterio&&Array.isArray(r.niveles)&&r.niveles.length===4))d.rubrica=j.rubrica.map(r=>({criterio:String(r.criterio),niveles:r.niveles.map(String)}));
+  const f=j.formativa;if(f&&f.nombre&&Array.isArray(f.criterios))d.formativa={nombre:String(f.nombre),descripcion:String(f.descripcion||''),criterios:f.criterios.map(String),retroalimentacion:String(f.retroalimentacion||'')};
+  const u=j.sumativa;if(u&&u.nombre&&Array.isArray(u.pesos)&&u.pesos.length===4&&u.pesos.every(Number.isFinite))d.sumativa={nombre:String(u.nombre),descripcion:String(u.descripcion||''),pesos:u.pesos.map(Number)}}}
+  catch(e){$('gs').textContent='No se pudo usar Claude; se usó la plantilla base. '}}
+ const tot=d.sumativa.pesos.reduce((x,y)=>x+y,0);
+ const B=[{t:'title',x:'Planificación de clase',s:`${T} · ${info()} · ${d.fecha} · ${dur} min`},
+  H1('Objetivo de aprendizaje'),P1(d.objetivo),...(d.ind.length?[H1('Indicadores de logro'),...d.ind.map(L1)]:[]),
+  H1('Secuencia didáctica'),{t:'tb',hdr:1,fc:1,w:[.16,.1,.74],rows:[['Momento','Min','Descripción'],['Inicio',d.min[0],d.inicio],['Desarrollo',d.min[1],d.desarrollo],['Cierre',d.min[2],d.cierre]]},
+  H1('Preguntas de pensamiento crítico'),...d.preguntas.map(L1),H1('Recursos y materiales'),P1(d.recursos),H1('Atención a la diversidad'),P1(d.diferenciacion),H1('Tarea / evidencia para el portafolio'),P1(d.tarea),
+  H1('Evaluación sugerida: aplicar ambas'),P1('Se sugiere aplicar las dos evaluaciones. La sumativa es la más importante: pesa 70 % de la calificación de la actividad y se aplica al finalizar para calificar el logro con la rúbrica. La formativa pesa 30 % y se aplica durante la clase para retroalimentar y ajustar la enseñanza.'),
+  H1('Evaluación sumativa (70 %): '+d.sumativa.nombre),P1(d.sumativa.descripcion),
+  H1('Rúbrica (escala 1–4)'),{t:'tb',hdr:1,fc:1,w:[.2,.2,.2,.2,.2],rows:[['Criterio','Excelente (4)','Bueno (3)','Regular (2)','Necesita mejorar (1)'],...d.rubrica.map(r=>[r.criterio,...r.niveles])]},
+  {t:'tb',hdr:1,fc:1,w:[.5,.15,.35],rows:[['Criterio','Peso (pts)','Cálculo'],...d.rubrica.map((r,i)=>[r.criterio,d.sumativa.pesos[i],`Nivel (1–4) ÷ 4 × ${d.sumativa.pesos[i]}`]),['Total',tot,'Suma de los criterios']]},
+  P1('Ejemplo: nivel 3 en un criterio de 25 puntos = 18,75 puntos.'),
+  H1('Evaluación formativa (30 %): '+d.formativa.nombre),P1(d.formativa.descripcion),...d.formativa.criterios.map(L1),P1('Calificación formativa: puntúa cada criterio de 1 a 4 y calcula el promedio (escala 1–4). Retroalimentación: '+d.formativa.retroalimentacion)];
+ renderDoc(B);$('g2').disabled=false;done($('gs').textContent+'✔ Planificación de clase lista.','Planificacion_clase_'+(a.n||'actividad'))};
+</script></body></html>
