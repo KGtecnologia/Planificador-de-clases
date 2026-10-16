@@ -253,13 +253,22 @@ programacion:{p:{o:'Programar el robot para cumplir el reto de la actividad usan
  t:'Guardar el código y subir un video corto de la prueba al portafolio.',
  f:{nombre:'Retos cortos de código y revisión entre pares',descripcion:'Mini retos durante la clase y revisión del código por un compañero. Sirve para retroalimentar y no pondera en la nota.',criterios:['Escribe la secuencia correcta','Prueba el programa en el robot','Corrige errores con ayuda de los pares'],retroalimentacion:'comentar los errores frecuentes con todo el grupo.'},
  sn:'Programa funcional del robot',sd:'Programa que cumple el reto con el robot, evaluado con la rúbrica de programación al finalizar.'}};
-const SCH='objetivo, inicio, desarrollo (pasos concretos con tiempos), cierre, recursos, indicadores (arreglo de 2 a 3 indicadores de logro), preguntas (arreglo de 4 preguntas de pensamiento crítico), diferenciacion, tarea, rubrica (arreglo de 4 objetos {criterio, niveles:[4 descriptores: Excelente, Bueno, Regular, Necesita mejorar]}), formativa ({nombre, descripcion, criterios:[3], retroalimentacion}), sumativa ({nombre, descripcion, pesos:[4 números que suman 100, uno por criterio de la rúbrica]})';
+const SCH='Cada planificación debe ser un objeto JSON con estas claves EXACTAS: objetivo (cadena), inicio (cadena), desarrollo (cadena), cierre (cadena), recursos (cadena), indicadores (arreglo de 2 o 3 cadenas), preguntas (arreglo de 4 cadenas), diferenciacion (cadena), tarea (cadena), rubrica (arreglo de 4 objetos con criterio como cadena y niveles como arreglo de 4 cadenas en orden Excelente, Bueno, Regular, Necesita mejorar), formativa (objeto con nombre, descripcion, criterios: arreglo de 3 cadenas, retroalimentacion), sumativa (objeto con nombre, descripcion, pesos: arreglo de 4 números que suman 100). No agregues claves con nombres diferentes ni explicaciones fuera del JSON.';
 function parseAIJson(raw){
- const clean=String(raw||'').replace(/^```(?:json)?\\s*/i,'').replace(/\\s*```$/,'').trim();
+ let clean=String(raw||'').trim();
+ // Remove Markdown fences even when the model adds a language label.
+ clean=clean.replace(/^```[a-zA-Z0-9_-]*[ \t]*\r?\n?/,'');
+ clean=clean.replace(/\r?\n?[ \t]*```[ \t]*$/,'').trim();
  try{return JSON.parse(clean)}catch(first){
+  // If there is explanatory text around the JSON, isolate the outermost object.
   const start=clean.indexOf('{'),end=clean.lastIndexOf('}');
-  if(start>=0&&end>start){try{return JSON.parse(clean.slice(start,end+1))}catch(second){}}
-  throw new Error('La respuesta de IA no es JSON válido. Detalle: '+first.message);
+  if(start>=0&&end>start){
+   const candidate=clean.slice(start,end+1);
+   try{return JSON.parse(candidate)}catch(second){
+    throw new Error('La IA devolvió contenido que no es JSON válido. '+second.message);
+   }
+  }
+  throw new Error('La respuesta de IA no es JSON válido. '+first.message);
  }
 }
 function aiValueToText(value){
@@ -327,7 +336,7 @@ $('g2').onclick=async()=>{const an=$('an').value.trim(),m=an.match(/Actividad\s*
  $('gs').textContent='Generando…';$('gs').className='msg';$('g2').disabled=true;
  {try{
   const base=`Eres asesor pedagógico experto en planificación didáctica y metodología TBox. La guía de actividad NUEVA que se acaba de cargar es la fuente principal. Basa cada decisión en ese documento; usa el resumen del proyecto solo como contexto complementario. No reutilices textos de plantillas ni datos de otros archivos. No inventes materiales, requisitos ni contenidos ausentes: señala las limitaciones dentro de los campos correspondientes. Responde en español y SOLO con JSON válido, sin Markdown ni comentarios.\nOBLIGATORIO: genera contenido nuevo y específico para esta guía en TODOS los campos; especialmente \"inicio\", \"desarrollo\" y \"cierre\". No copies frases de ejemplos o plantillas. Los campos deben ser cadenas no vacías. Si la guía no da detalles suficientes, formula una propuesta prudente y explícita que se ajuste a lo que sí dice el documento.\nArchivo de actividad nuevo: ${$('fn2').textContent}\nResumen del proyecto (solo contexto): \"\"\"${PDFTXT.slice(0,5000)}\"\"\"\nGUÍA DE LA ACTIVIDAD NUEVA (FUENTE PRINCIPAL): \"\"\"${ACTTXT.slice(0,14000)}\"\"\"\nGrado: ${$('gr').value||'no indicado'}. Docente: ${$('doc').value||'no indicado'}. Actividad: ${an}. Fecha: ${fecha}.`;
-  const pr=rob?`${base} Diseña DOS planificaciones diferenciadas: 1) armado del robot en UNA sola clase de ${tA} minutos; 2) UNA clase de ${tP} minutos para programación, pruebas, depuración y aplicación de evaluación. En cada objeto devuelve obligatoriamente las claves: ${SCH}. Los campos inicio, desarrollo y cierre deben ser específicos y distintos en cada clase. Responde SOLO JSON: {\"armado\":{${SCH}},\"programacion\":{${SCH}}}`:`${base} Diseña una planificación de UNA clase de ${dur} minutos. Incluye tiempos que sumen exactamente ${dur} minutos y actividades concretas ajustadas a la guía. Devuelve un objeto JSON con estas claves y tipos: ${SCH}. Asegúrate de que inicio, desarrollo y cierre describan acciones concretas de esta actividad, no frases genéricas ni textos de plantilla.`;
+  const pr=rob?`${base} Diseña DOS planificaciones diferenciadas: 1) armado del robot en UNA sola clase de ${tA} minutos; 2) UNA clase de ${tP} minutos para programación, pruebas, depuración y aplicación de evaluación. ${SCH} En cada planificación, inicio, desarrollo y cierre deben ser cadenas de texto concretas y específicas para esa clase. Devuelve SOLO un objeto JSON válido con esta estructura de nivel superior: {\"armado\": { ...todos los campos requeridos... }, \"programacion\": { ...todos los campos requeridos... }}. No escribas bloques Markdown ni uses comillas invertidas.`:`${base} Diseña una planificación de UNA clase de ${dur} minutos. Incluye tiempos que sumen exactamente ${dur} minutos y actividades concretas ajustadas a la guía. ${SCH} Asegúrate de que inicio, desarrollo y cierre describan acciones concretas de esta actividad, no frases genéricas ni textos de plantilla. Devuelve únicamente JSON válido, sin bloques Markdown ni texto antes o después del objeto.`;
   const raw=await askAI(pr);const j=parseAIJson(raw);
   if(rob){mergeAI(ds[0],j.armado);mergeAI(ds[1],j.programacion)}else mergeAI(ds[0],j);aiSucceeded=true
  }catch(e){$('gs').textContent='No se generó la planificación con IA para evitar mostrar una plantilla genérica como si estuviera basada en el PDF. Detalle: '+e.message;$('gs').className='msg';$('g2').disabled=false;return;}}
