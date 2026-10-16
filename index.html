@@ -262,22 +262,46 @@ function parseAIJson(raw){
   throw new Error('La respuesta de IA no es JSON válido. Detalle: '+first.message);
  }
 }
+function aiValueToText(value){
+ if(value===null||value===undefined)return '';
+ if(typeof value==='string')return value.trim();
+ if(typeof value==='number'||typeof value==='boolean')return String(value);
+ if(Array.isArray(value)){
+  return value.map((item,i)=>{
+   const txt=aiValueToText(item);
+   return txt ? (value.length>1 ? `${i+1}. ${txt}` : txt) : '';
+  }).filter(Boolean).join('\n');
+ }
+ if(typeof value==='object'){
+  // Convertir estructuras JSON a texto legible en lugar de mostrar "[object Object]".
+  const parts=[];
+  for(const [key,val] of Object.entries(value)){
+   const txt=aiValueToText(val);
+   if(!txt)continue;
+   const label=key.replace(/[_-]+/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+   parts.push(`${label}: ${txt}`);
+  }
+  return parts.join('\n');
+ }
+ return String(value);
+}
 function mergeAI(d,j){
  if(!j||typeof j!=='object'||Array.isArray(j))throw new Error('La IA no devolvió un objeto de planificación válido.');
- // No permitir que la secuencia se quede silenciosamente con los textos de la plantilla PH/ROB.
  const required=['objetivo','inicio','desarrollo','cierre','recursos','diferenciacion','tarea'];
- const missing=required.filter(k=>typeof j[k]!=='string'||!j[k].trim());
- if(missing.length)throw new Error('La respuesta de IA no incluye estos campos obligatorios: '+missing.join(', ')+'. Intenta generar la planificación otra vez.');
- for(const k of required)d[k]=j[k].trim();
- if(Array.isArray(j.preguntas)&&j.preguntas.length)d.preguntas=j.preguntas.map(String);
- if(Array.isArray(j.indicadores)&&j.indicadores.length)d.ind=j.indicadores.map(String);
- if(Array.isArray(j.rubrica)&&j.rubrica.length===4&&j.rubrica.every(r=>r.criterio&&Array.isArray(r.niveles)&&r.niveles.length===4))d.rubrica=j.rubrica.map(r=>({criterio:String(r.criterio),niveles:r.niveles.map(String)}));
- const f=j.formativa;if(f&&f.nombre&&Array.isArray(f.criterios))d.formativa={nombre:String(f.nombre),descripcion:String(f.descripcion||''),criterios:f.criterios.map(String),retroalimentacion:String(f.retroalimentacion||'')};
- const u=j.sumativa;if(u&&u.nombre&&Array.isArray(u.pesos)&&u.pesos.length===4&&u.pesos.every(Number.isFinite))d.sumativa={nombre:String(u.nombre),descripcion:String(u.descripcion||''),pesos:u.pesos.map(Number)};
+ const normalized={};
+ for(const k of required)normalized[k]=aiValueToText(j[k]);
+ const missing=required.filter(k=>!normalized[k]);
+ if(missing.length)throw new Error('La respuesta de IA no incluye contenido para estos campos: '+missing.join(', ')+'. Intenta generar la planificación otra vez.');
+ for(const k of required)d[k]=normalized[k];
+ if(Array.isArray(j.preguntas)&&j.preguntas.length)d.preguntas=j.preguntas.map(aiValueToText).filter(Boolean);
+ if(Array.isArray(j.indicadores)&&j.indicadores.length)d.ind=j.indicadores.map(aiValueToText).filter(Boolean);
+ if(Array.isArray(j.rubrica)&&j.rubrica.length===4&&j.rubrica.every(r=>r.criterio&&Array.isArray(r.niveles)&&r.niveles.length===4))d.rubrica=j.rubrica.map(r=>({criterio:aiValueToText(r.criterio),niveles:r.niveles.map(aiValueToText)}));
+ const f=j.formativa;if(f&&f.nombre&&Array.isArray(f.criterios))d.formativa={nombre:aiValueToText(f.nombre),descripcion:aiValueToText(f.descripcion||''),criterios:f.criterios.map(aiValueToText),retroalimentacion:aiValueToText(f.retroalimentacion||'')};
+ const u=j.sumativa;if(u&&u.nombre&&Array.isArray(u.pesos)&&u.pesos.length===4&&u.pesos.every(Number.isFinite))d.sumativa={nombre:aiValueToText(u.nombre),descripcion:aiValueToText(u.descripcion||''),pesos:u.pesos.map(Number)};
 }
 function classBlocks(d){const tot=d.sumativa.pesos.reduce((x,y)=>x+y,0);return[
  H1('Objetivo de aprendizaje'),P1(d.objetivo),...(d.ind.length?[H1('Indicadores de logro'),...d.ind.map(L1)]:[]),
- H1('Secuencia didáctica'),{t:'tb',hdr:1,fc:1,w:[.16,.1,.74],rows:[['Momento','Min','Descripción'],...d.st.map(([l,mn,k])=>[l,mn,({i:d.inicio,d:d.desarrollo,c:d.cierre})[k]||d.x[k]])]},
+ H1('Secuencia didáctica'),{t:'tb',hdr:1,fc:1,w:[.16,.1,.74],rows:[['Momento','Min','Descripción'],...d.st.map(([l,mn,k])=>[l,mn,aiValueToText(({i:d.inicio,d:d.desarrollo,c:d.cierre})[k]||d.x[k])])]},
  H1('Preguntas de pensamiento crítico'),...d.preguntas.map(L1),H1('Recursos y materiales'),P1(d.recursos),H1('Atención a la diversidad'),P1(d.diferenciacion),H1('Tarea / evidencia para el portafolio'),P1(d.tarea),
  H1('Evaluación sugerida: aplicar ambas'),P1('Se sugiere aplicar las dos evaluaciones. La sumativa es la más importante: pesa 70 % de la calificación y se aplica al finalizar para calificar el logro con la rúbrica. La formativa pesa 30 % y se aplica durante la clase para retroalimentar y ajustar la enseñanza.'),
  H1('Evaluación sumativa (70 %): '+d.sumativa.nombre),P1(d.sumativa.descripcion),
