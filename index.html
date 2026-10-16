@@ -54,7 +54,7 @@ body.robo{--ac:#0f766e;--ac2:#e0f5f1}@media(prefers-color-scheme:dark){:root:not
 <input id="f2" type="file" accept="application/pdf" hidden><div id="st2" class="msg"></div>
 <div class="grid" style="margin-top:12px"><div><label>Nombre de la actividad (se detecta del PDF)</label><input type="text" id="an" placeholder="Ej.: Actividad 1: Investigar"></div>
 <div><label>Fecha de la clase</label><input type="date" id="dc"></div></div>
-<label class="chk"><input type="checkbox" id="ai" checked> Enriquecer los detalles con Claude (si está disponible)</label></div>
+<label class="chk"><input type="checkbox" id="ai" checked> Usar IA para generar la planificación basada en el PDF (obligatorio)</label></div>
 </div>
 
 <div class="card"><h2>3. Datos generales</h2>
@@ -140,7 +140,7 @@ function parse(){const seen={};ACTS=[];
  ACTS.sort((a,b)=>a.n-b.n);INDS={};
  for(const m of PDFTXT.matchAll(/Indicador\s+(\d\.\d)\.\s+(.+?\.)(?=\s)/g))INDS[m[1]]=m[2];
  const t=PDFTXT.match(/\d\d\/\d\d\/\d\d,\s*\d\d:\d\d\s+(.+?)\s+https?:/);$('pn').value=t?t[1]:'';
- if(!ACTS.length){$('st').textContent='No se detectaron actividades; agrégalas manualmente.';return manual();}
+ if(!ACTS.length){$('st').textContent='El PDF se leyó, pero no se detectaron actividades con el formato esperado. Verifica que sea el documento correcto y agrega las actividades manualmente.';return manual();}
  $('st').textContent=`✔ ${ACTS.length} actividades y ${Object.keys(INDS).length} indicadores detectados.`;$('st').className='msg ok';
  $('na').value=ACTS.length;draw();}
 function manual(){ACTS=[1,2,3].map(n=>({n,fase:'Investigar'}));draw();}
@@ -189,10 +189,10 @@ explorar_t:{f:'Revisión entre pares del guion con preguntas guía.',s:'Guion de
 explorar_m:{f:'Bitácora de prompts y revisión de errores en imágenes y audios generados con IA.',s:'Banco de recursos generados con IA (rúbrica: recursos multimedia y pertinencia).'},
 construir:{f:'Avance del video en la línea de tiempo con lista de cotejo.',s:'Video editado (rúbrica: edición y montaje, calidad audiovisual).'},
 aplicar:{f:'Coevaluación durante el festival de cine.',s:'Reseña final evaluada con la rúbrica del proyecto (5 criterios).'}};
-$('g1').onclick=async()=>{const W=+$('wk').value,N=Math.min(+$('na').value,ACTS.length);if($('ai').checked&&!PDFTXT.trim()){$('gs').textContent='Primero carga y espera a que se lea correctamente el PDF nuevo. No se generará una planificación genérica.';$('gs').className='msg';return;}if(!W||!N){$('gs').textContent='Completa semanas y actividades.';return}
+$('g1').onclick=async()=>{const W=+$('wk').value,N=Math.min(+$('na').value,ACTS.length);if(!$('ai').checked){$('gs').textContent='Activa la casilla “Usar IA para generar la planificación basada en el PDF”. Las plantillas locales no corresponden necesariamente al documento cargado.';$('gs').className='msg';return;}if(!PDFTXT.trim()){$('gs').textContent='Primero carga y espera a que se lea correctamente el PDF nuevo. No se generará una planificación genérica.';$('gs').className='msg';return;}if(!W||!N){$('gs').textContent='Completa semanas y actividades.';return}
  const acts=ACTS.slice(0,N),sch=schedule(W,N),ev=acts.map(a=>THEME==='rob'?(EVR[phaseKeyR(a)]||EVR.investigar):(EV[phaseKey(a)]||EV.investigar));
  let aiPlan=null; $('g1').disabled=true; $('gs').textContent='Preparando planificación...'; $('gs').className='msg';
- if($('ai').checked){try{
+ {try{
  const prompt=`Eres asesor pedagógico. Basa esta planificación en el PDF NUEVO que se acaba de cargar. No reutilices información de otros documentos ni inventes actividades, productos o indicadores. Si falta información, indícalo en recommendations.
 Archivo fuente: ${$('fn').textContent}
 Tipo: ${THEME==='rob'?'Robótica':'Tecnología'}. Proyecto: ${$('pn').value||'No especificado'}. Grado: ${$('gr').value||'No especificado'}. Docente: ${$('doc').value||'No especificado'}. Fechas: ${$('d1').value||'sin indicar'} a ${$('d2').value||'sin indicar'}. Semanas: ${W}.
@@ -271,6 +271,7 @@ function classBlocks(d){const tot=d.sumativa.pesos.reduce((x,y)=>x+y,0);return[
  P1('Ejemplo: nivel 3 en un criterio de 25 puntos = 18,75 puntos.'),
  H1('Evaluación formativa (30 %): '+d.formativa.nombre),P1(d.formativa.descripcion),...d.formativa.criterios.map(L1),P1('Calificación formativa: puntúa cada criterio de 1 a 4 y calcula el promedio (escala 1–4). Retroalimentación: '+d.formativa.retroalimentacion)]}
 $('g2').onclick=async()=>{const an=$('an').value.trim(),m=an.match(/Actividad\s*(\d+)\s*[:\-–.]?\s*(.*)/i),a=m?{n:+m[1],fase:m[2]||an}:{n:0,fase:an},dur=+$('du').value,rob=THEME==='rob';
+ if(!$('ai').checked){$('gs').textContent='Activa la casilla “Usar IA para generar la planificación basada en el PDF”. No se mostrará una plantilla genérica.';$('gs').className='msg';return}
  if(!ACTTXT){$('gs').textContent='Sube primero el PDF de la actividad de TBox.';$('gs').className='msg';return}
  if(!an||!dur){$('gs').textContent='Indica el nombre de la actividad y la duración.';return}
  const fecha=$('dc').value?pd($('dc').value).toLocaleDateString('es',{weekday:'long',day:'numeric',month:'long',year:'numeric'}):'—';
@@ -285,7 +286,7 @@ $('g2').onclick=async()=>{const an=$('an').value.trim(),m=an.match(/Actividad\s*
   f:{nombre:'Lista de cotejo y ticket de salida',descripcion:'Observación durante la clase y una pregunta de salida para verificar la comprensión. Sirve para retroalimentar y no pondera en la nota.',criterios:(RUB[pk]||RUB.investigar).slice(0,3),retroalimentacion:'devolver comentarios al grupo al cierre y ajustar la próxima clase.'},
   sn:'Producto de la '+an,sd:'Evidencia entregada en el portafolio de TBox Academy, calificada con la rúbrica.'})]}
  $('gs').textContent='Generando…';$('gs').className='msg';$('g2').disabled=true;
- if($('ai').checked){try{
+ {try{
   const base=`Eres asesor pedagógico experto en planificación didáctica y metodología TBox. Basa la respuesta en la guía de actividad NUEVA que se acaba de cargar; es la fuente principal. Usa el resumen del proyecto solo como contexto complementario. No reutilices datos de otros archivos ni inventes materiales o requisitos. Si falta información, indícalo. Responde en español y SOLO JSON válido.\nArchivo de actividad nuevo: ${$('fn2').textContent}\nResumen del proyecto: \"\"\"${PDFTXT.slice(0,5000)}\"\"\"\nGUÍA DE LA ACTIVIDAD NUEVA (FUENTE PRINCIPAL): \"\"\"${ACTTXT.slice(0,14000)}\"\"\"\nGrado: ${$('gr').value||'no indicado'}. Docente: ${$('doc').value||'no indicado'}. Actividad: ${an}. Fecha: ${fecha}.`;
   const pr=rob?`${base} Diseña DOS planificaciones diferenciadas: 1) armado del robot en UNA sola clase de ${tA} minutos; 2) UNA clase de ${tP} minutos para programación, pruebas, depuración y aplicación de evaluación. Responde SOLO JSON: {\"armado\":{${SCH}},\"programacion\":{${SCH}}}`:`${base} Diseña una planificación de UNA clase de ${dur} minutos. Incluye tiempos que sumen exactamente ${dur} minutos y actividades concretas ajustadas al PDF. Devuelve un objeto JSON con estas claves y tipos: ${SCH}.`;
   const raw=await askAI(pr);const j=JSON.parse(raw.replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,'').trim());
