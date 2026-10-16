@@ -85,9 +85,10 @@ body.robo{--ac:#0f766e;--ac2:#e0f5f1}@media(prefers-color-scheme:dark){:root:not
 <script>
 const $=id=>document.getElementById(id);
 let ACTS=[],INDS={},PDFTXT='',downloads=null,LAST=null;
-const CL=window.claude||{use:async()=>null};
+const AI_ENDPOINT = 'https://rough-field-f0d3.tecnologia-e9e.workers.dev'; // Reemplazar por la URL real del backend desplegado
+async function askAI(prompt){if(!AI_ENDPOINT||AI_ENDPOINT.includes('TU-WORKER'))throw new Error('Configura la URL del backend de IA en AI_ENDPOINT.');const r=await fetch(AI_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt})});if(!r.ok){const t=await r.text();throw new Error('Servicio IA ('+r.status+'): '+t.slice(0,240));}const data=await r.json();if(!data.text)throw new Error('El servicio IA no devolvió contenido.');return data.text;}
+const CL={use:async()=>null};
 const FALLBACK={save:async({filename,data})=>{const u=URL.createObjectURL(data instanceof Blob?data:new Blob([data]));const a=document.createElement('a');a.href=u;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000);return{status:'saved'}}};
-if(!window.claude)document.querySelectorAll('.chk').forEach(e=>e.style.display='none');
 CL.use('downloads').then(d=>downloads=d||FALLBACK).catch(()=>downloads=FALLBACK);
 
 const X={q:["¿Qué conexiones ves entre la película y situaciones de la vida real?","¿Qué información de la IA contrastaste con otras fuentes y qué cambiaste?","¿Qué riesgos o errores detectaste al usar herramientas de IA?"],
@@ -188,22 +189,32 @@ explorar_t:{f:'Revisión entre pares del guion con preguntas guía.',s:'Guion de
 explorar_m:{f:'Bitácora de prompts y revisión de errores en imágenes y audios generados con IA.',s:'Banco de recursos generados con IA (rúbrica: recursos multimedia y pertinencia).'},
 construir:{f:'Avance del video en la línea de tiempo con lista de cotejo.',s:'Video editado (rúbrica: edición y montaje, calidad audiovisual).'},
 aplicar:{f:'Coevaluación durante el festival de cine.',s:'Reseña final evaluada con la rúbrica del proyecto (5 criterios).'}};
-$('g1').onclick=()=>{const W=+$('wk').value,N=Math.min(+$('na').value,ACTS.length);if(!W||!N){$('gs').textContent='Completa semanas y actividades.';return}
+$('g1').onclick=async()=>{const W=+$('wk').value,N=Math.min(+$('na').value,ACTS.length);if(!W||!N){$('gs').textContent='Completa semanas y actividades.';return}
  const acts=ACTS.slice(0,N),sch=schedule(W,N),ev=acts.map(a=>THEME==='rob'?(EVR[phaseKeyR(a)]||EVR.investigar):(EV[phaseKey(a)]||EV.investigar));
+ let aiPlan=null; $('g1').disabled=true; $('gs').textContent='Preparando planificación...'; $('gs').className='msg';
+ if($('ai').checked){try{
+ const prompt=`Actúa como asesor pedagógico experto en metodología por proyectos, TBox y evaluación auténtica. Personaliza la planificación usando el PDF como fuente principal. No inventes requisitos específicos que no aparezcan en el documento.
+Tipo: ${THEME==='rob'?'Robótica':'Tecnología'}. Proyecto: ${$('pn').value||'No especificado'}. Grado: ${$('gr').value||'No especificado'}. Docente: ${$('doc').value||'No especificado'}. Fechas: ${$('d1').value||'sin indicar'} a ${$('d2').value||'sin indicar'}. Semanas: ${W}.
+Actividades detectadas: ${JSON.stringify(acts)}
+Texto del PDF: ${PDFTXT.slice(0,14000)}
+Devuelve SOLO JSON válido: {"activities":[{"n":1,"fase":"...","objetivo":"...","producto":"...","evaluacion_formativa":"...","evaluacion_sumativa":"...","indicadores":["...","..."]}],"weekly_notes":["..."],"recommendations":["..."]}. Incluye una entrada por actividad, conserva numeración y basa objetivos, productos y evaluación en el PDF.`;
+ const raw=await askAI(prompt); aiPlan=JSON.parse(raw.replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,'').trim());
+ }catch(err){$('gs').textContent='No se pudo conectar con IA; se usará la plantilla base. '+err.message;}}
+ $('g1').disabled=false;
  const last=acts.map((_,k)=>{let m=-1;sch.forEach((w,i)=>{if(w.some(x=>x.k===k))m=i});return m});
  let sums=ev.map((e,k)=>e.s?k:-1).filter(k=>k>=0);if(!sums.length)sums=[N-1];const S=new Set(sums);
  const rows=[['Semana','Fechas','Actividad','Evaluación sumativa sugerida (70 %)','Evaluación formativa sugerida (30 %)']];
- sch.forEach((w,i)=>rows.push(['Semana '+(i+1),wkRange(i)||'—',{t:w.map(o=>title(acts[o.k])+(o.cont?' (cont.)':'')).join('\n'),f:COL[w[0].k%COL.length]},
-  w.filter(o=>S.has(o.k)&&last[o.k]===i).map(o=>ev[o.k].s||'Producto final de la actividad con rúbrica.').join('\n')||'—',
-  w.map(o=>o.cont?'Seguimiento y retroalimentación continua.':ev[o.k].f).join('\n')]));
+ sch.forEach((w,i)=>rows.push(['Semana '+(i+1),wkRange(i)||'—',{t:w.map(o=>{const z=aiPlan?.activities?.find(x=>+x.n===+acts[o.k].n);return title(acts[o.k])+(o.cont?' (cont.)':'')+(z?.objetivo?'\n'+z.objetivo:'')+(z?.producto?'\nProducto: '+z.producto:'')}).join('\n'),f:COL[w[0].k%COL.length]},
+  w.filter(o=>S.has(o.k)&&last[o.k]===i).map(o=>{const z=aiPlan?.activities?.find(x=>+x.n===+acts[o.k].n);return z?.evaluacion_sumativa||z?.producto||ev[o.k].s||'Producto final de la actividad con rúbrica.'}).join('\n')||'—',
+  w.map(o=>{const z=aiPlan?.activities?.find(x=>+x.n===+acts[o.k].n);return o.cont?'Seguimiento y retroalimentación continua.':(z?.evaluacion_formativa||ev[o.k].f)}).join('\n')]));
  const a=pd($('d1').value),b=pd($('d2').value),wt=sums.map((_,i)=>Math.floor(70/sums.length)+(i<70%sums.length?1:0));
  const B=[{t:'title',x:'Planificación del trimestre · '+(THEME==='rob'?'Robótica':'Tecnología'),s:`${info()} · ${a&&b?fm(a)+' al '+fm(b)+' · ':''}${W} semanas`},
   H1('Calendario semanal y evaluaciones sugeridas'),{t:'tb',hdr:1,fc:1,w:[.1,.13,.2,.32,.25],rows},
   H1('Resumen de calificaciones sugerido'),P1('Las evaluaciones sumativas son las más importantes: valen 70 % de la nota del trimestre.'),
   ...sums.map((k,i)=>L1(`Sumativa (${wt[i]} %), semana ${last[k]+1}: ${ev[k].s||'Producto final de la actividad con rúbrica.'}`)),
   L1(`Evaluaciones formativas (30 %): ${N} registros de seguimiento que se promedian; sirven para retroalimentar y mejorar el proceso.`),
-  P1('Sugerencia: aplica las formativas durante las clases para ajustar la enseñanza y reserva las sumativas para los productos entregados en el portafolio de TBox Academy.'),...(THEME==='rob'?[P1('Robótica: dedica una sola clase de 90 minutos al armado y otra clase a la programación, las pruebas y la evaluación; evalúa cada una por separado.')]:[])];
- show(B);done('✔ Planificación del trimestre lista.','Planificacion_trimestre')};
+  P1('Sugerencia: aplica las formativas durante las clases para ajustar la enseñanza y reserva las sumativas para los productos entregados en el portafolio de TBox Academy.'),...(aiPlan?.recommendations||[]).map(x=>L1('Recomendación IA: '+x)),...(aiPlan?.weekly_notes||[]).map(x=>L1('Nota de planificación: '+x)),...(THEME==='rob'?[P1('Robótica: dedica una sola clase de 90 minutos al armado y otra clase a la programación, las pruebas y la evaluación; evalúa cada una por separado.')]:[])];
+ show(B);done((aiPlan?'✔ Planificación personalizada con IA lista. ':'✔ Planificación base lista. '),'Planificacion_trimestre');$('g1').disabled=false};
 
 // ---------- Clase del día ----------
 let ACTTXT='';
@@ -265,21 +276,22 @@ $('g2').onclick=async()=>{const an=$('an').value.trim(),m=an.match(/Actividad\s*
   return{tit:o.tit,st,x:o.p.x||{},ind:o.ind||[],objetivo:o.p.o,inicio:o.p.i,desarrollo:o.p.d,cierre:o.p.c,recursos:o.p.r,preguntas:o.q||X.q,diferenciacion:X.df,tarea:o.t||X.t,
   rubrica:o.rc.map(c=>({criterio:c,niveles:LV})),formativa:o.f,sumativa:{nombre:o.sn,descripcion:o.sd,pesos:[25,25,25,25]},pre:o.pre||[]}};
  const tA=+$('tA').value||90,tP=+$('tP').value||dur;
- let ds;
+ let ds,aiSucceeded=false;
  if(rob){const R=ROB;ds=[mk({...R.armado,T:tA,tit:`Clase 1 · Armado · ${tA} min (una sola clase)`,st:[['Inicio',.1,'i'],['Armado',.65,'d'],['Prueba mecánica',.15,'m'],['Cierre',.1,'c']]}),
   mk({...R.programacion,T:tP,tit:`Clase 2 · Programación, pruebas y evaluación · ${tP} min`,st:[['Inicio',.1,'i'],['Programación',.4,'d'],['Pruebas y depuración',.25,'pr'],['Evaluación',.15,'e'],['Cierre',.1,'c']]})]}
  else{const pk=phaseKey(a),p=PH[pk];ds=[mk({tit:an,st:[['Inicio',.15,'i'],['Desarrollo',.7,'d'],['Cierre',.15,'c']],p,rc:RUB[pk]||RUB.investigar,ind:(IMAP[a.n]||[]).filter(k=>INDS[k]).map(k=>`${k} ${INDS[k]}`),
   f:{nombre:'Lista de cotejo y ticket de salida',descripcion:'Observación durante la clase y una pregunta de salida para verificar la comprensión. Sirve para retroalimentar y no pondera en la nota.',criterios:(RUB[pk]||RUB.investigar).slice(0,3),retroalimentacion:'devolver comentarios al grupo al cierre y ajustar la próxima clase.'},
   sn:'Producto de la '+an,sd:'Evidencia entregada en el portafolio de TBox Academy, calificada con la rúbrica.'})]}
  $('gs').textContent='Generando…';$('gs').className='msg';$('g2').disabled=true;
- if($('ai').checked){try{const sm=await CL.use('sample');if(sm){
-  const base=`Eres asesor pedagógico. Proyecto escolar (resumen):\n"""${PDFTXT.slice(0,2500)}"""\nGuía de TBox de la actividad:\n"""${ACTTXT.slice(0,5000)}"""\nRedacta en español una planificación EXHAUSTIVA basada en la guía.`;
-  const pr=rob?`${base} Planifica DOS clases de la "${an}": 1) armado del robot en UNA sola clase de ${tA} min; 2) UNA clase de ${tP} min para programación, pruebas y la aplicación de la evaluación. Responde SOLO con JSON (sin markdown): {"armado":{${SCH}},"programacion":{${SCH}}}`:`${base} Es UNA clase de ${dur} minutos de la "${an}". Responde SOLO con un objeto JSON (sin markdown) con claves: ${SCH}.`;
-  const r=await sm(pr,{modelTier:'default'});const j=JSON.parse(r.text.replace(/```json|```/g,'').trim());
-  if(rob){mergeAI(ds[0],j.armado);mergeAI(ds[1],j.programacion)}else mergeAI(ds[0],j)}}
-  catch(e){$('gs').textContent='No se pudo usar Claude; se usó la plantilla base. '}}
+ if($('ai').checked){try{
+  const base=`Eres asesor pedagógico experto en planificación didáctica y metodología TBox. Basa las decisiones en la guía de actividad. No inventes materiales ni requisitos que contradigan el documento. Responde en español y SOLO JSON válido.\nResumen del proyecto: \"\"\"${PDFTXT.slice(0,5000)}\"\"\"\nGuía de la actividad (fuente principal): \"\"\"${ACTTXT.slice(0,10000)}\"\"\"\nGrado: ${$('gr').value||'no indicado'}. Docente: ${$('doc').value||'no indicado'}. Actividad: ${an}. Fecha: ${fecha}.`;
+  const pr=rob?`${base} Diseña DOS planificaciones diferenciadas: 1) armado del robot en UNA sola clase de ${tA} minutos; 2) UNA clase de ${tP} minutos para programación, pruebas, depuración y aplicación de evaluación. Responde SOLO JSON: {\"armado\":{${SCH}},\"programacion\":{${SCH}}}`:`${base} Diseña una planificación de UNA clase de ${dur} minutos. Incluye tiempos que sumen exactamente ${dur} minutos y actividades concretas ajustadas al PDF. Devuelve un objeto JSON con estas claves y tipos: ${SCH}.`;
+  const raw=await askAI(pr);const j=JSON.parse(raw.replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,'').trim());
+  if(rob){mergeAI(ds[0],j.armado);mergeAI(ds[1],j.programacion)}else mergeAI(ds[0],j);aiSucceeded=true
+ }catch(e){$('gs').textContent='No se pudo conectar con IA; se usó la plantilla base. '+e.message;}}
+
  const B=[{t:'title',x:'Planificación de clase · '+(rob?'Robótica':'Tecnología'),s:`${an} · ${info()} · ${fecha} · ${dur} min por clase`}];
  if(rob)B.push(H1('Distribución sugerida del tiempo'),L1(`Clase 1 · Armado: una sola clase de ${tA} min (inicio, armado, prueba mecánica y cierre).`),L1(`Clase 2 · Programación, pruebas y evaluación: una clase de ${tP} min (programación, pruebas y depuración, y aplicación de la evaluación).`),P1('Cada clase tiene su evaluación sumativa (70 %) y su evaluación formativa (30 %). La sumativa del armado se califica al final de la clase 1; la de programación, durante la clase 2.'));
  ds.forEach((d,i)=>{if(rob)B.push({t:'band',x:d.tit,np:i>0});B.push(...classBlocks(d))});
- show(B);$('g2').disabled=false;done($('gs').textContent+'✔ Planificación de clase lista.','Planificacion_clase_'+(rob?'robotica_':'')+(a.n||'actividad'))};
+ show(B);$('g2').disabled=false;done((aiSucceeded?'✔ Planificación de clase personalizada con IA lista. ':'✔ Planificación base lista. '),'Planificacion_clase_'+(rob?'robotica_':'')+(a.n||'actividad'))};
 </script></body></html>
