@@ -352,13 +352,13 @@ $('g2').onclick=async()=>{const an=$('an').value.trim(),m=an.match(/Actividad\s*
     // Separar las dos clases reduce mucho la longitud de cada respuesta y evita
     // que una única respuesta JSON enorme quede truncada o mal formada.
     const common=`${base}\n${SCH}\nIMPORTANTE: respuesta breve, máximo 4500 caracteres. Devuelve un solo objeto JSON de UNA clase. No uses Markdown, comentarios ni texto fuera del JSON.`;
-    const pArmado=`${common}\nPLANIFICACIÓN: clase única de armado de robot, duración ${tA} minutos. Prioriza inventario de piezas, ensamblaje por etapas según la guía, revisión de conexiones, seguridad y prueba mecánica. No incluyas programación como actividad principal.`;
-    const pProg=`${common}\nPLANIFICACIÓN: clase única de programación, pruebas, depuración y evaluación del robot, duración ${tP} minutos. Presupón que el robot ya está armado. Prioriza lógica de programación, prueba en el robot, detección y corrección de errores y demostración evaluada.`;
-    const [ja,jp]=await Promise.all([
-      requestValidJson(pArmado,'armado'),
-      requestValidJson(pProg,'programación y pruebas')
-    ]);
+    const pArmado=`${common}\nDevuelve exactamente UN objeto JSON plano, no un objeto con claves armado/programacion. PLANIFICACIÓN: clase única de armado de robot, duración ${tA} minutos. Prioriza inventario de piezas, ensamblaje por etapas según la guía, revisión de conexiones, seguridad y prueba mecánica. No incluyas programación como actividad principal.`;
+    const pProg=`${common}\nDevuelve exactamente UN objeto JSON plano, no un objeto con claves armado/programacion. PLANIFICACIÓN: clase única de programación, pruebas, depuración y evaluación del robot, duración ${tP} minutos. Presupón que el robot ya está armado. Prioriza lógica de programación, prueba en el robot, detección y corrección de errores y demostración evaluada.`;
+    // Hacer las solicitudes en serie: algunos servicios/Workers limitan
+    // solicitudes simultáneas y pueden devolver respuestas truncadas o errores.
+    const ja=await requestValidJson(pArmado,'armado');
     mergeAI(ds[0],ja);
+    const jp=await requestValidJson(pProg,'programación y pruebas');
     mergeAI(ds[1],jp);
   } else {
     const j=await requestValidJson(pr,'planificación de clase');
