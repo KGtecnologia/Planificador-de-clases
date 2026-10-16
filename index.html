@@ -271,6 +271,37 @@ function parseAIJson(raw){
   throw new Error('La respuesta de IA no es JSON válido. '+first.message);
  }
 }
+async function requestRobotCore(prompt,label){
+ const shortPrompt=`${prompt}
+FORMATO OBLIGATORIO: devuelve SOLO un objeto JSON válido, sin Markdown ni comentarios, con EXACTAMENTE estas cinco propiedades de texto: "objetivo", "inicio", "desarrollo", "cierre", "recursos".
+Máximo 1500 caracteres en total. Cada campo debe ser una cadena breve. En desarrollo indica etapas y minutos que sumen la duración indicada. No incluyas rúbricas, preguntas, evaluaciones ni propiedades adicionales. No uses saltos de línea literales dentro de las cadenas JSON.`;
+ let raw=await askAI(shortPrompt);
+ try {
+  const j=parseAIJson(raw);
+  return validateRobotCore(j,label);
+ } catch(firstError) {
+  const repairPrompt=`La respuesta siguiente no es JSON válido. Reescríbela como un objeto JSON válido y compacto con EXACTAMENTE cinco propiedades de texto: "objetivo", "inicio", "desarrollo", "cierre", "recursos". Mantén el significado, corrige la sintaxis, limita el total a 1500 caracteres y devuelve solo JSON, sin Markdown.
+RESPUESTA:
+${String(raw).slice(0,7000)}`;
+  raw=await askAI(repairPrompt);
+  try {
+   return validateRobotCore(parseAIJson(raw),label);
+  } catch(secondError) {
+   throw new Error(`La respuesta de Robótica (${label}) sigue sin ser JSON válido tras el reintento. ${secondError.message}`);
+  }
+ }
+}
+function validateRobotCore(j,label){
+ if(!j||typeof j!=='object'||Array.isArray(j))throw new Error(`${label}: la IA no devolvió un objeto JSON.`);
+ const keys=['objetivo','inicio','desarrollo','cierre','recursos'];
+ const out={};
+ for(const k of keys){
+  const v=aiValueToText(j[k]);
+  if(!v)throw new Error(`${label}: falta el campo "${k}".`);
+  out[k]=v;
+ }
+ return out;
+}
 function aiValueToText(value){
  if(value===null||value===undefined)return '';
  if(typeof value==='string')return value.trim();
@@ -356,10 +387,13 @@ $('g2').onclick=async()=>{const an=$('an').value.trim(),m=an.match(/Actividad\s*
     const pProg=`${common}\nDevuelve exactamente UN objeto JSON plano, no un objeto con claves armado/programacion. PLANIFICACIÓN: clase única de programación, pruebas, depuración y evaluación del robot, duración ${tP} minutos. Presupón que el robot ya está armado. Prioriza lógica de programación, prueba en el robot, detección y corrección de errores y demostración evaluada.`;
     // Hacer las solicitudes en serie: algunos servicios/Workers limitan
     // solicitudes simultáneas y pueden devolver respuestas truncadas o errores.
-    const ja=await requestValidJson(pArmado,'armado');
-    mergeAI(ds[0],ja);
-    const jp=await requestValidJson(pProg,'programación y pruebas');
-    mergeAI(ds[1],jp);
+    // Robótica pide solo los cinco campos narrativos. Los demás elementos
+    // (rúbrica, preguntas y evaluaciones) se conservan desde la configuración ROB,
+    // evitando respuestas JSON extensas que suelen llegar truncadas o mal formadas.
+    const ja=await requestRobotCore(pArmado,'armado');
+    Object.assign(ds[0],ja);
+    const jp=await requestRobotCore(pProg,'programación y pruebas');
+    Object.assign(ds[1],jp);
   } else {
     const j=await requestValidJson(pr,'planificación de clase');
     mergeAI(ds[0],j);
