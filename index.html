@@ -253,7 +253,7 @@ programacion:{p:{o:'Programar el robot para cumplir el reto de la actividad usan
  t:'Guardar el código y subir un video corto de la prueba al portafolio.',
  f:{nombre:'Retos cortos de código y revisión entre pares',descripcion:'Mini retos durante la clase y revisión del código por un compañero. Sirve para retroalimentar y no pondera en la nota.',criterios:['Escribe la secuencia correcta','Prueba el programa en el robot','Corrige errores con ayuda de los pares'],retroalimentacion:'comentar los errores frecuentes con todo el grupo.'},
  sn:'Programa funcional del robot',sd:'Programa que cumple el reto con el robot, evaluado con la rúbrica de programación al finalizar.'}};
-const SCH='Cada planificación debe ser un objeto JSON con estas claves EXACTAS: objetivo (cadena), inicio (cadena), desarrollo (cadena), cierre (cadena), recursos (cadena), indicadores (arreglo de 2 o 3 cadenas), preguntas (arreglo de 4 cadenas), diferenciacion (cadena), tarea (cadena), rubrica (arreglo de 4 objetos con criterio como cadena y niveles como arreglo de 4 cadenas en orden Excelente, Bueno, Regular, Necesita mejorar), formativa (objeto con nombre, descripcion, criterios: arreglo de 3 cadenas, retroalimentacion), sumativa (objeto con nombre, descripcion, pesos: arreglo de 4 números que suman 100). No agregues claves con nombres diferentes ni explicaciones fuera del JSON.';
+const SCH='Devuelve JSON válido y compacto con estas claves exactas: objetivo (cadena de máximo 35 palabras), inicio (máximo 45 palabras), desarrollo (máximo 100 palabras con tiempos), cierre (máximo 45 palabras), recursos (máximo 35 palabras), indicadores (arreglo de 2 cadenas cortas), preguntas (arreglo de 4 preguntas cortas), diferenciacion (máximo 35 palabras), tarea (máximo 30 palabras), rubrica (arreglo de 4 objetos {criterio, niveles:[4 cadenas muy breves]}), formativa ({nombre, descripcion breve, criterios:[3 cadenas breves], retroalimentacion breve}), sumativa ({nombre, descripcion breve, pesos:[4 números que suman 100]}). Usa frases concisas. Escapa correctamente las comillas dentro del texto. No incluyas saltos de línea literales dentro de cadenas JSON. No agregues claves ni texto fuera del JSON.';
 function parseAIJson(raw){
  let clean=String(raw||'').trim();
  // Remove Markdown fences even when the model adds a language label.
@@ -265,7 +265,7 @@ function parseAIJson(raw){
   if(start>=0&&end>start){
    const candidate=clean.slice(start,end+1);
    try{return JSON.parse(candidate)}catch(second){
-    throw new Error('La IA devolvió contenido que no es JSON válido. '+second.message);
+    throw new Error('La respuesta de IA no tiene formato JSON válido incluso después de revisar su estructura. '+second.message+' Comprueba también que el servicio no haya truncado la respuesta.');
    }
   }
   throw new Error('La respuesta de IA no es JSON válido. '+first.message);
@@ -336,9 +336,35 @@ $('g2').onclick=async()=>{const an=$('an').value.trim(),m=an.match(/Actividad\s*
  $('gs').textContent='Generando…';$('gs').className='msg';$('g2').disabled=true;
  {try{
   const base=`Eres asesor pedagógico experto en planificación didáctica y metodología TBox. La guía de actividad NUEVA que se acaba de cargar es la fuente principal. Basa cada decisión en ese documento; usa el resumen del proyecto solo como contexto complementario. No reutilices textos de plantillas ni datos de otros archivos. No inventes materiales, requisitos ni contenidos ausentes: señala las limitaciones dentro de los campos correspondientes. Responde en español y SOLO con JSON válido, sin Markdown ni comentarios.\nOBLIGATORIO: genera contenido nuevo y específico para esta guía en TODOS los campos; especialmente \"inicio\", \"desarrollo\" y \"cierre\". No copies frases de ejemplos o plantillas. Los campos deben ser cadenas no vacías. Si la guía no da detalles suficientes, formula una propuesta prudente y explícita que se ajuste a lo que sí dice el documento.\nArchivo de actividad nuevo: ${$('fn2').textContent}\nResumen del proyecto (solo contexto): \"\"\"${PDFTXT.slice(0,5000)}\"\"\"\nGUÍA DE LA ACTIVIDAD NUEVA (FUENTE PRINCIPAL): \"\"\"${ACTTXT.slice(0,14000)}\"\"\"\nGrado: ${$('gr').value||'no indicado'}. Docente: ${$('doc').value||'no indicado'}. Actividad: ${an}. Fecha: ${fecha}.`;
-  const pr=rob?`${base} Diseña DOS planificaciones diferenciadas: 1) armado del robot en UNA sola clase de ${tA} minutos; 2) UNA clase de ${tP} minutos para programación, pruebas, depuración y aplicación de evaluación. ${SCH} En cada planificación, inicio, desarrollo y cierre deben ser cadenas de texto concretas y específicas para esa clase. Devuelve SOLO un objeto JSON válido con esta estructura de nivel superior: {\"armado\": { ...todos los campos requeridos... }, \"programacion\": { ...todos los campos requeridos... }}. No escribas bloques Markdown ni uses comillas invertidas.`:`${base} Diseña una planificación de UNA clase de ${dur} minutos. Incluye tiempos que sumen exactamente ${dur} minutos y actividades concretas ajustadas a la guía. ${SCH} Asegúrate de que inicio, desarrollo y cierre describan acciones concretas de esta actividad, no frases genéricas ni textos de plantilla. Devuelve únicamente JSON válido, sin bloques Markdown ni texto antes o después del objeto.`;
-  const raw=await askAI(pr);const j=parseAIJson(raw);
-  if(rob){mergeAI(ds[0],j.armado);mergeAI(ds[1],j.programacion)}else mergeAI(ds[0],j);aiSucceeded=true
+  const pr=rob?`${base} Diseña DOS planificaciones diferenciadas: 1) armado del robot en UNA sola clase de ${tA} minutos; 2) UNA clase de ${tP} minutos para programación, pruebas, depuración y aplicación de evaluación. ${SCH} En cada planificación, inicio, desarrollo y cierre deben ser cadenas de texto concretas y específicas para esa clase. Devuelve SOLO un objeto JSON válido con esta estructura de nivel superior: {\"armado\": { ...todos los campos requeridos... }, \"programacion\": { ...todos los campos requeridos... }}. No escribas bloques Markdown ni uses comillas invertidas.`:`${base} Diseña una planificación de UNA clase de ${dur} minutos. Incluye tiempos que sumen exactamente ${dur} minutos y actividades concretas ajustadas a la guía. Mantén toda la respuesta por debajo de 4500 caracteres y usa frases breves. ${SCH} Asegúrate de que inicio, desarrollo y cierre describan acciones concretas de esta actividad, no frases genéricas ni textos de plantilla. Devuelve únicamente JSON válido, sin bloques Markdown ni texto antes o después del objeto.`;
+  async function requestValidJson(prompt, label){
+    const raw=await askAI(prompt);
+    try { return parseAIJson(raw); }
+    catch(parseErr) {
+      // Reintento breve de reparación para respuestas con comillas/saltos de línea inválidos.
+      const repairPrompt=`Corrige el formato del contenido y devuelve únicamente JSON válido, sin Markdown ni explicaciones. Mantén los datos existentes, acorta textos si es necesario y asegúrate de cerrar todas las cadenas, objetos y arreglos. La respuesta final debe tener menos de 4500 caracteres. Si falta contenido porque la respuesta se cortó, completa con texto breve y prudente, sin inventar requisitos específicos.\nETIQUETA: ${label}\nCONTENIDO A CORREGIR:\n${String(raw).slice(0,14000)}`;
+      const repaired=await askAI(repairPrompt);
+      try { return parseAIJson(repaired); }
+      catch(e) { throw new Error(`La IA devolvió JSON inválido para ${label}, incluso tras intentar repararlo. Esto suele ocurrir si la respuesta se corta o incluye saltos de línea sin escapar. ${e.message}`); }
+    }
+  }
+  if(rob){
+    // Separar las dos clases reduce mucho la longitud de cada respuesta y evita
+    // que una única respuesta JSON enorme quede truncada o mal formada.
+    const common=`${base}\n${SCH}\nIMPORTANTE: respuesta breve, máximo 4500 caracteres. Devuelve un solo objeto JSON de UNA clase. No uses Markdown, comentarios ni texto fuera del JSON.`;
+    const pArmado=`${common}\nPLANIFICACIÓN: clase única de armado de robot, duración ${tA} minutos. Prioriza inventario de piezas, ensamblaje por etapas según la guía, revisión de conexiones, seguridad y prueba mecánica. No incluyas programación como actividad principal.`;
+    const pProg=`${common}\nPLANIFICACIÓN: clase única de programación, pruebas, depuración y evaluación del robot, duración ${tP} minutos. Presupón que el robot ya está armado. Prioriza lógica de programación, prueba en el robot, detección y corrección de errores y demostración evaluada.`;
+    const [ja,jp]=await Promise.all([
+      requestValidJson(pArmado,'armado'),
+      requestValidJson(pProg,'programación y pruebas')
+    ]);
+    mergeAI(ds[0],ja);
+    mergeAI(ds[1],jp);
+  } else {
+    const j=await requestValidJson(pr,'planificación de clase');
+    mergeAI(ds[0],j);
+  }
+  aiSucceeded=true
  }catch(e){$('gs').textContent='No se generó la planificación con IA para evitar mostrar una plantilla genérica como si estuviera basada en el PDF. Detalle: '+e.message;$('gs').className='msg';$('g2').disabled=false;return;}}
 
  const B=[{t:'title',x:'Planificación de clase · '+(rob?'Robótica':'Tecnología'),s:`${an} · ${info()} · ${fecha} · ${dur} min por clase`}];
