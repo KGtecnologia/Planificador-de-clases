@@ -254,12 +254,96 @@ programacion:{p:{o:'Programar el robot para cumplir el reto de la actividad usan
  f:{nombre:'Retos cortos de código y revisión entre pares',descripcion:'Mini retos durante la clase y revisión del código por un compañero. Sirve para retroalimentar y no pondera en la nota.',criterios:['Escribe la secuencia correcta','Prueba el programa en el robot','Corrige errores con ayuda de los pares'],retroalimentacion:'comentar los errores frecuentes con todo el grupo.'},
  sn:'Programa funcional del robot',sd:'Programa que cumple el reto con el robot, evaluado con la rúbrica de programación al finalizar.'}};
 const SCH='objetivo, inicio, desarrollo (pasos concretos con tiempos), cierre, recursos, indicadores (arreglo de 2 a 3 indicadores de logro), preguntas (arreglo de 4 preguntas de pensamiento crítico), diferenciacion, tarea, rubrica (arreglo de 4 objetos {criterio, niveles:[4 descriptores: Excelente, Bueno, Regular, Necesita mejorar]}), formativa ({nombre, descripcion, criterios:[3], retroalimentacion}), sumativa ({nombre, descripcion, pesos:[4 números que suman 100, uno por criterio de la rúbrica]})';
-function mergeAI(d,j){if(!j)return;for(const k of['objetivo','inicio','desarrollo','cierre','recursos','diferenciacion','tarea'])if(typeof j[k]==='string'&&j[k])d[k]=j[k];
- if(Array.isArray(j.preguntas)&&j.preguntas.length)d.preguntas=j.preguntas.map(String);
- if(!d.ind.length&&Array.isArray(j.indicadores))d.ind=j.indicadores.map(String);
- if(Array.isArray(j.rubrica)&&j.rubrica.length===4&&j.rubrica.every(r=>r.criterio&&Array.isArray(r.niveles)&&r.niveles.length===4))d.rubrica=j.rubrica.map(r=>({criterio:String(r.criterio),niveles:r.niveles.map(String)}));
- const f=j.formativa;if(f&&f.nombre&&Array.isArray(f.criterios))d.formativa={nombre:String(f.nombre),descripcion:String(f.descripcion||''),criterios:f.criterios.map(String),retroalimentacion:String(f.retroalimentacion||'')};
- const u=j.sumativa;if(u&&u.nombre&&Array.isArray(u.pesos)&&u.pesos.length===4&&u.pesos.every(Number.isFinite))d.sumativa={nombre:String(u.nombre),descripcion:String(u.descripcion||''),pesos:u.pesos.map(Number)}}
+
+function mergeAI(d, j) {
+  if (!j || typeof j !== "object") {
+    throw new Error("La IA no devolvió una planificación válida para el PDF actual.");
+  }
+
+  const required = [
+    "objetivo",
+    "inicio",
+    "desarrollo",
+    "cierre",
+    "recursos"
+  ];
+
+  for (const key of required) {
+    if (typeof j[key] !== "string" || !j[key].trim()) {
+      throw new Error(
+        "La planificación del PDF actual no contiene el campo requerido: " + key
+      );
+    }
+  }
+
+  // Sustituye los textos de plantilla por el contenido del proyecto actual.
+  d.objetivo = j.objetivo.trim();
+  d.inicio = j.inicio.trim();
+  d.desarrollo = j.desarrollo.trim();
+  d.cierre = j.cierre.trim();
+  d.recursos = j.recursos.trim();
+
+  if (typeof j.diferenciacion === "string" && j.diferenciacion.trim()) {
+    d.diferenciacion = j.diferenciacion.trim();
+  }
+
+  if (typeof j.tarea === "string" && j.tarea.trim()) {
+    d.tarea = j.tarea.trim();
+  }
+
+  if (Array.isArray(j.preguntas) && j.preguntas.length) {
+    d.preguntas = j.preguntas.map(String);
+  }
+
+  // No conservar indicadores de una plantilla anterior.
+  if (Array.isArray(j.indicadores) && j.indicadores.length) {
+    d.ind = j.indicadores.map(String);
+  } else {
+    d.ind = [];
+  }
+
+  if (
+    Array.isArray(j.rubrica) &&
+    j.rubrica.length === 4 &&
+    j.rubrica.every(
+      r => r.criterio &&
+      Array.isArray(r.niveles) &&
+      r.niveles.length === 4
+    )
+  ) {
+    d.rubrica = j.rubrica.map(r => ({
+      criterio: String(r.criterio),
+      niveles: r.niveles.map(String)
+    }));
+  }
+
+  if (
+    j.formativa &&
+    j.formativa.nombre &&
+    Array.isArray(j.formativa.criterios)
+  ) {
+    d.formativa = {
+      nombre: String(j.formativa.nombre),
+      descripcion: String(j.formativa.descripcion || ""),
+      criterios: j.formativa.criterios.map(String),
+      retroalimentacion: String(j.formativa.retroalimentacion || "")
+    };
+  }
+
+  if (
+    j.sumativa &&
+    j.sumativa.nombre &&
+    Array.isArray(j.sumativa.pesos) &&
+    j.sumativa.pesos.length === 4 &&
+    j.sumativa.pesos.every(Number.isFinite)
+  ) {
+    d.sumativa = {
+      nombre: String(j.sumativa.nombre),
+      descripcion: String(j.sumativa.descripcion || ""),
+      pesos: j.sumativa.pesos.map(Number)
+    };
+  }
+}
 function classBlocks(d){const tot=d.sumativa.pesos.reduce((x,y)=>x+y,0);return[
  H1('Objetivo de aprendizaje'),P1(d.objetivo),...(d.ind.length?[H1('Indicadores de logro'),...d.ind.map(L1)]:[]),
  H1('Secuencia didáctica'),{t:'tb',hdr:1,fc:1,w:[.16,.1,.74],rows:[['Momento','Min','Descripción'],...d.st.map(([l,mn,k])=>[l,mn,({i:d.inicio,d:d.desarrollo,c:d.cierre})[k]||d.x[k]])]},
