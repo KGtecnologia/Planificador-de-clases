@@ -41,7 +41,7 @@ body.robo{--ac:#0f766e;--ac2:#e0f5f1}@media(prefers-color-scheme:dark){:root:not
 
 <div id="m1">
 <div class="card"><h2>2. Archivo del proyecto</h2>
-<label class="drop" for="f"><b>Haz clic para subir el PDF del proyecto</b><br><span id="fn" class="sub">Ej.: Proyecto.pdf</span></label>
+<label class="drop" for="f"><b>Haz clic para subir el PDF del proyecto</b><br><span id="fn" class="sub">Ej.: Festival_de_cine.pdf</span></label>
 <input id="f" type="file" accept="application/pdf" hidden>
 <div id="st" class="msg"></div>
 <h2 style="margin-top:16px">Actividades detectadas <small class="sub">(puedes editarlas)</small></h2>
@@ -61,7 +61,7 @@ body.robo{--ac:#0f766e;--ac2:#e0f5f1}@media(prefers-color-scheme:dark){:root:not
 <div class="grid">
 <div><label>Nombre del docente</label><input type="text" id="doc"></div>
 <div><label>Grado</label><input type="text" id="gr" placeholder="Ej.: 8.º"></div>
-<div><label>Nombre del proyecto</label><input type="text" id="pn" placeholder="Nombre del proyecto"></div>
+<div><label>Nombre del proyecto</label><input type="text" id="pn" placeholder="Ej.: Festival de cine"></div>
 <div class="tri"><label>Fecha de inicio del trimestre</label><input type="date" id="d1"></div>
 <div class="tri"><label>Fecha de finalización</label><input type="date" id="d2"></div>
 <div class="tri"><label>Semanas del trimestre (se calcula con las fechas)</label><input type="number" id="wk" min="1" max="20" value="12"></div>
@@ -91,11 +91,16 @@ const CL={use:async()=>null};
 const FALLBACK={save:async({filename,data})=>{const u=URL.createObjectURL(data instanceof Blob?data:new Blob([data]));const a=document.createElement('a');a.href=u;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000);return{status:'saved'}}};
 CL.use('downloads').then(d=>downloads=d||FALLBACK).catch(()=>downloads=FALLBACK);
 
-const X={q:['¿Qué conexiones ves entre lo aprendido y situaciones de la vida real?','¿Qué información contrastaste con otras fuentes y qué cambiaste?','¿Qué riesgos o errores detectaste al usar herramientas digitales o de IA?','¿Cómo podrías mejorar tu trabajo?'],
+const X={q:["¿Qué conexiones ves entre la película y situaciones de la vida real?","¿Qué información de la IA contrastaste con otras fuentes y qué cambiaste?","¿Qué riesgos o errores detectaste al usar herramientas de IA?"],
 df:"Apoyo: ejemplos guiados, plantillas y trabajo en parejas. Ampliación: retos de mayor complejidad o roles de liderazgo en el equipo.",
-t:"Registrar en el portafolio lo trabajado y responder las preguntas de la actividad."};
-const TXT=v=>Array.isArray(v)?v.map(String).join(' '):(v==null?'':String(v)).trim();
-function clearOut(){BLOCKS=null;$('cv').classList.add('hide');$('dls').classList.add('hide');$('gs').textContent=''}
+t:"Registrar en el portafolio de TBox Academy lo trabajado y responder las preguntas de la actividad."};
+const PH={
+investigar:{o:"Investigar sobre la reseña cinematográfica y el uso de la IA, y elegir la película (con aprobación docente).",i:"Presentar el reto del proyecto y activar conocimientos previos sobre cine e IA.",d:"Investigar en fuentes confiables, elegir la película y registrar hallazgos; contrastar con otras fuentes lo que genera la IA.",c:"Socializar la película elegida y los hallazgos; el docente aprueba la elección.",r:"Navegador web, procesador de textos, herramientas de IA para generar textos.",e:"Registro de la investigación y portafolio en TBox Academy."},
+explorar_t:{o:"Explorar herramientas de IA para obtener ideas y textos, y redactar el guion de la reseña.",i:"Repasar los hallazgos y presentar la estructura del guion y del documento de planificación.",d:"Generar ideas con IA, revisar y mejorar el texto, y añadir el 'toque personal' al guion conectando la película con la vida real.",c:"Compartir fragmentos del guion y retroalimentación entre pares.",r:"Herramientas de IA de texto, procesador de textos.",e:"Documento de planificación y guion revisados (pensamiento crítico)."},
+explorar_m:{o:"Explorar herramientas de IA para crear imágenes, narraciones, animaciones y música para la reseña.",i:"Mostrar ejemplos de recursos generados con IA y comentar sus riesgos.",d:"Generar imágenes y audios con prompts específicos; evaluar si presentan elementos erróneos y descartar o mejorar.",c:"Valorar la pertinencia de los recursos y organizarlos en una carpeta del proyecto.",r:"Herramientas de IA (imágenes, voz, música, animación), sitios de recursos gratuitos.",e:"Banco de recursos y reflexión sobre riesgos de la IA."},
+construir:{o:"Construir el video: organizar recursos en la línea de tiempo y aplicar textos, transiciones y efectos.",i:"Repasar el guion y los elementos de la edición de video.",d:"Montar las escenas en el editor siguiendo el guion; incorporar textos, transiciones, efectos, narración y música.",c:"Visionado de avances y ajustes según retroalimentación.",r:"Editor de video, recursos generados, guion.",e:"Avance del video con la rúbrica (edición y calidad audiovisual)."},
+aplicar:{o:"Presentar y evaluar las reseñas en el Festival de cine escolar.",i:"Preparar el espacio y recordar los criterios de la rúbrica.",d:"Proyectar las reseñas y completar la valoración con la rúbrica (análisis crítico, recursos IA, edición, calidad, originalidad).",c:"Coevaluación, reflexión final y publicación en el canal elegido.",r:"Proyector, rúbrica, canal de YouTube o lista de reproducción institucional.",e:"Rúbrica de evaluación del proyecto."}};
+const IMAP={1:['1.1'],2:['1.1','1.2'],3:['2.1','2.2'],4:['3.1','3.2'],5:['3.1','3.2']};
 function phaseKey(a){const t=(a.fase||'').toLowerCase();
  if(t.includes('invest'))return'investigar';if(t.includes('constru'))return'construir';if(t.includes('aplic'))return'aplicar';
  if(t.includes('explor'))return a.n<=2?'explorar_t':'explorar_m';return'investigar';}
@@ -123,7 +128,7 @@ $('du').oninput=()=>{$('tP').value=$('du').value};
 $('t1').onclick=()=>tab(1);$('t2').onclick=()=>tab(2);
 
 // PDF
-$('f').onchange=async e=>{const file=e.target.files[0];if(!file)return;clearOut();$('pn').value='';
+$('f').onchange=async e=>{const file=e.target.files[0];if(!file)return;
  PDFTXT='';ACTS=[];INDS={};$('fn').textContent=file.name;$('st').textContent='Leyendo PDF…';$('st').className='msg';
  try{pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
   const pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;let tx='';
@@ -179,8 +184,13 @@ const info=()=>[$('pn').value&&'Proyecto: '+$('pn').value,'Docente: '+($('doc').
 
 // ---------- Trimestre ----------
 const COL=['#e0e7ff','#cffafe','#d1fae5','#fef3c7','#fce7f3','#ede9fe','#fee2e2','#ccfbf1'];
-$('g1').onclick=async()=>{clearOut();const W=+$('wk').value,N=Math.min(+$('na').value,ACTS.length);if(!$('ai').checked){$('gs').textContent='Activa la casilla “Usar IA para generar la planificación basada en el PDF”. Las plantillas locales no corresponden necesariamente al documento cargado.';$('gs').className='msg';return;}if(!PDFTXT.trim()){$('gs').textContent='Primero carga y espera a que se lea correctamente el PDF nuevo. No se generará una planificación genérica.';$('gs').className='msg';return;}if(!W||!N){$('gs').textContent='Completa semanas y actividades.';return}
- const acts=ACTS.slice(0,N),sch=schedule(W,N),ev=acts.map(()=>({f:'',s:''}));
+const EV={investigar:{f:'Lista de cotejo de la investigación y de la elección de la película (fuentes contrastadas).',s:''},
+explorar_t:{f:'Revisión entre pares del guion con preguntas guía.',s:'Guion de la reseña (rúbrica: análisis crítico y conexión con la vida real).'},
+explorar_m:{f:'Bitácora de prompts y revisión de errores en imágenes y audios generados con IA.',s:'Banco de recursos generados con IA (rúbrica: recursos multimedia y pertinencia).'},
+construir:{f:'Avance del video en la línea de tiempo con lista de cotejo.',s:'Video editado (rúbrica: edición y montaje, calidad audiovisual).'},
+aplicar:{f:'Coevaluación durante el festival de cine.',s:'Reseña final evaluada con la rúbrica del proyecto (5 criterios).'}};
+$('g1').onclick=async()=>{const W=+$('wk').value,N=Math.min(+$('na').value,ACTS.length);if(!$('ai').checked){$('gs').textContent='Activa la casilla “Usar IA para generar la planificación basada en el PDF”. Las plantillas locales no corresponden necesariamente al documento cargado.';$('gs').className='msg';return;}if(!PDFTXT.trim()){$('gs').textContent='Primero carga y espera a que se lea correctamente el PDF nuevo. No se generará una planificación genérica.';$('gs').className='msg';return;}if(!W||!N){$('gs').textContent='Completa semanas y actividades.';return}
+ const acts=ACTS.slice(0,N),sch=schedule(W,N),ev=acts.map(a=>THEME==='rob'?(EVR[phaseKeyR(a)]||EVR.investigar):(EV[phaseKey(a)]||EV.investigar));
  let aiPlan=null; $('g1').disabled=true; $('gs').textContent='Preparando planificación...'; $('gs').className='msg';
  {try{
  const prompt=`Eres asesor pedagógico. Basa esta planificación en el PDF NUEVO que se acaba de cargar. No reutilices información de otros documentos ni inventes actividades, productos o indicadores. Si falta información, indícalo en recommendations.
@@ -191,7 +201,6 @@ TEXTO EXTRAÍDO DEL PDF NUEVO (FUENTE PRINCIPAL): ${PDFTXT.slice(0,18000)}
 Devuelve SOLO JSON válido: {"activities":[{"n":1,"fase":"...","objetivo":"...","producto":"...","evaluacion_formativa":"...","evaluacion_sumativa":"...","indicadores":["...","..."]}],"weekly_notes":["..."],"recommendations":["..."]}. Incluye una entrada por actividad, conserva la numeración y basa los campos en el documento.`;
  const raw=await askAI(prompt); aiPlan=JSON.parse(raw.replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,'').trim());
  if(!Array.isArray(aiPlan.activities)||!aiPlan.activities.length)throw new Error('La IA no devolvió actividades basadas en el documento.');
- acts.forEach((a,k)=>{const z=aiPlan.activities.find(x=>+x.n===+a.n)||{};ev[k]={f:TXT(z.evaluacion_formativa),s:TXT(z.evaluacion_sumativa)}});
  }catch(err){$('gs').textContent='No se generó la planificación porque falló el procesamiento con IA. Verifica el PDF nuevo y la conexión. Detalle: '+err.message;$('gs').className='msg';$('g1').disabled=false;return;}}
  $('g1').disabled=false;
  const last=acts.map((_,k)=>{let m=-1;sch.forEach((w,i)=>{if(w.some(x=>x.k===k))m=i});return m});
@@ -214,10 +223,15 @@ let ACTTXT='';
 async function pdfText(file){pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
  const pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;let tx='';
  for(let p=1;p<=pdf.numPages;p++){const c=await(await pdf.getPage(p)).getTextContent();tx+=c.items.map(i=>i.str).join(' ')+'\n'}return tx.replace(/\s+/g,' ')}
-$('f2').onchange=async e=>{const f=e.target.files[0];if(!f)return;clearOut();$('an').value='';ACTTXT='';$('fn2').textContent=f.name;$('st2').textContent='Leyendo PDF…';$('st2').className='msg';
+$('f2').onchange=async e=>{const f=e.target.files[0];if(!f)return;ACTTXT='';$('fn2').textContent=f.name;$('st2').textContent='Leyendo PDF…';$('st2').className='msg';
  try{ACTTXT=await pdfText(f);if(ACTTXT.length<50)throw 0;$('st2').textContent='✔ Actividad leída.';$('st2').className='msg ok';
   const m=ACTTXT.match(/Actividad\s*(\d+)\s*[:\-–.]?\s*([A-Za-zÁÉÍÓÚáéíóúñ]+)?/);if(m)$('an').value='Actividad '+m[1]+(m[2]&&/invest|explor|constru|aplic/i.test(m[2])?': '+m[2]:'')}
  catch(x){ACTTXT='';$('st2').textContent='No se pudo extraer texto de ese PDF.'}};
+const RUB={investigar:['Análisis crítico de la película','Contraste de fuentes e información generada con IA','Planificación y organización','Ciudadanía digital (uso crítico y seguro de la IA)'],
+explorar_t:['Análisis crítico de la película','Guion: estructura y elementos requeridos','Toque personal y originalidad','Conexión con la vida real'],
+explorar_m:['Recursos multimedia generados con IA','Pertinencia y revisión de errores en las imágenes','Uso de prompts específicos','Originalidad y creatividad'],
+construir:['Edición y montaje','Calidad audiovisual','Recursos multimedia generados con IA','Originalidad y creatividad'],
+aplicar:['Análisis crítico de la película','Recursos multimedia generados con IA','Edición y montaje','Originalidad y creatividad']};
 const LV=['Cumple de forma sobresaliente, con argumentos sólidos y originalidad.','Cumple adecuadamente; hay detalles menores por mejorar.','Cumple parcialmente; requiere mayor desarrollo y ejemplos.','No evidencia el criterio o es insuficiente.'];
 const EVR={investigar:{f:'Lista de cotejo de la investigación y del diseño inicial del robot.',s:''},
 armado:{f:'Lista de cotejo del armado (piezas, conexiones y estabilidad).',s:'Prototipo del robot armado (rúbrica de armado).'},
@@ -240,22 +254,26 @@ programacion:{p:{o:'Programar el robot para cumplir el reto de la actividad usan
  f:{nombre:'Retos cortos de código y revisión entre pares',descripcion:'Mini retos durante la clase y revisión del código por un compañero. Sirve para retroalimentar y no pondera en la nota.',criterios:['Escribe la secuencia correcta','Prueba el programa en el robot','Corrige errores con ayuda de los pares'],retroalimentacion:'comentar los errores frecuentes con todo el grupo.'},
  sn:'Programa funcional del robot',sd:'Programa que cumple el reto con el robot, evaluado con la rúbrica de programación al finalizar.'}};
 const SCH='objetivo, inicio, desarrollo (pasos concretos con tiempos), cierre, recursos, indicadores (arreglo de 2 a 3 indicadores de logro), preguntas (arreglo de 4 preguntas de pensamiento crítico), diferenciacion, tarea, rubrica (arreglo de 4 objetos {criterio, niveles:[4 descriptores: Excelente, Bueno, Regular, Necesita mejorar]}), formativa ({nombre, descripcion, criterios:[3], retroalimentacion}), sumativa ({nombre, descripcion, pesos:[4 números que suman 100, uno por criterio de la rúbrica]})';
-
-function mergeAI(d,j,strict){
- if(!j||typeof j!=='object')throw new Error('La IA no devolvió una planificación válida para el PDF actual.');
- for(const k of['objetivo','inicio','desarrollo','cierre','recursos']){const v=TXT(j[k]);if(!v)throw new Error('La respuesta de la IA no incluye el campo: '+k);d[k]=v}
- for(const k of['diferenciacion','tarea']){const v=TXT(j[k]);if(v)d[k]=v}
+function parseAIJson(raw){
+ const clean=String(raw||'').replace(/^```(?:json)?\\s*/i,'').replace(/\\s*```$/,'').trim();
+ try{return JSON.parse(clean)}catch(first){
+  const start=clean.indexOf('{'),end=clean.lastIndexOf('}');
+  if(start>=0&&end>start){try{return JSON.parse(clean.slice(start,end+1))}catch(second){}}
+  throw new Error('La respuesta de IA no es JSON válido. Detalle: '+first.message);
+ }
+}
+function mergeAI(d,j){
+ if(!j||typeof j!=='object'||Array.isArray(j))throw new Error('La IA no devolvió un objeto de planificación válido.');
+ // No permitir que la secuencia se quede silenciosamente con los textos de la plantilla PH/ROB.
+ const required=['objetivo','inicio','desarrollo','cierre','recursos','diferenciacion','tarea'];
+ const missing=required.filter(k=>typeof j[k]!=='string'||!j[k].trim());
+ if(missing.length)throw new Error('La respuesta de IA no incluye estos campos obligatorios: '+missing.join(', ')+'. Intenta generar la planificación otra vez.');
+ for(const k of required)d[k]=j[k].trim();
  if(Array.isArray(j.preguntas)&&j.preguntas.length)d.preguntas=j.preguntas.map(String);
- d.ind=Array.isArray(j.indicadores)?j.indicadores.map(String):[];
- const R=j.rubrica;
- if(Array.isArray(R)&&R.length===4&&R.every(r=>r&&r.criterio&&Array.isArray(r.niveles)&&r.niveles.length===4))d.rubrica=R.map(r=>({criterio:String(r.criterio),niveles:r.niveles.map(String)}));
- else if(strict)throw new Error('La IA no devolvió la rúbrica de 4 criterios.');
- const f=j.formativa;
- if(f&&f.nombre&&Array.isArray(f.criterios))d.formativa={nombre:String(f.nombre),descripcion:TXT(f.descripcion),criterios:f.criterios.map(String),retroalimentacion:TXT(f.retroalimentacion)};
- else if(strict)throw new Error('La IA no devolvió la evaluación formativa.');
- const u=j.sumativa,pw=u&&Array.isArray(u.pesos)?u.pesos.map(Number):[];
- if(u&&u.nombre&&pw.length===4&&pw.every(Number.isFinite))d.sumativa={nombre:String(u.nombre),descripcion:TXT(u.descripcion),pesos:pw};
- else if(strict)throw new Error('La IA no devolvió la evaluación sumativa.');
+ if(Array.isArray(j.indicadores)&&j.indicadores.length)d.ind=j.indicadores.map(String);
+ if(Array.isArray(j.rubrica)&&j.rubrica.length===4&&j.rubrica.every(r=>r.criterio&&Array.isArray(r.niveles)&&r.niveles.length===4))d.rubrica=j.rubrica.map(r=>({criterio:String(r.criterio),niveles:r.niveles.map(String)}));
+ const f=j.formativa;if(f&&f.nombre&&Array.isArray(f.criterios))d.formativa={nombre:String(f.nombre),descripcion:String(f.descripcion||''),criterios:f.criterios.map(String),retroalimentacion:String(f.retroalimentacion||'')};
+ const u=j.sumativa;if(u&&u.nombre&&Array.isArray(u.pesos)&&u.pesos.length===4&&u.pesos.every(Number.isFinite))d.sumativa={nombre:String(u.nombre),descripcion:String(u.descripcion||''),pesos:u.pesos.map(Number)};
 }
 function classBlocks(d){const tot=d.sumativa.pesos.reduce((x,y)=>x+y,0);return[
  H1('Objetivo de aprendizaje'),P1(d.objetivo),...(d.ind.length?[H1('Indicadores de logro'),...d.ind.map(L1)]:[]),
@@ -267,7 +285,7 @@ function classBlocks(d){const tot=d.sumativa.pesos.reduce((x,y)=>x+y,0);return[
  {t:'tb',hdr:1,fc:1,w:[.5,.15,.35],rows:[['Criterio','Peso (pts)','Cálculo'],...d.rubrica.map((r,i)=>[r.criterio,d.sumativa.pesos[i],`Nivel (1–4) ÷ 4 × ${d.sumativa.pesos[i]}`]),['Total',tot,'Suma de los criterios']]},
  P1('Ejemplo: nivel 3 en un criterio de 25 puntos = 18,75 puntos.'),
  H1('Evaluación formativa (30 %): '+d.formativa.nombre),P1(d.formativa.descripcion),...d.formativa.criterios.map(L1),P1('Calificación formativa: puntúa cada criterio de 1 a 4 y calcula el promedio (escala 1–4). Retroalimentación: '+d.formativa.retroalimentacion)]}
-$('g2').onclick=async()=>{clearOut();const an=$('an').value.trim(),m=an.match(/Actividad\s*(\d+)\s*[:\-–.]?\s*(.*)/i),a=m?{n:+m[1],fase:m[2]||an}:{n:0,fase:an},dur=+$('du').value,rob=THEME==='rob';
+$('g2').onclick=async()=>{const an=$('an').value.trim(),m=an.match(/Actividad\s*(\d+)\s*[:\-–.]?\s*(.*)/i),a=m?{n:+m[1],fase:m[2]||an}:{n:0,fase:an},dur=+$('du').value,rob=THEME==='rob';
  if(!$('ai').checked){$('gs').textContent='Activa la casilla “Usar IA para generar la planificación basada en el PDF”. No se mostrará una plantilla genérica.';$('gs').className='msg';return}
  if(!ACTTXT){$('gs').textContent='Sube primero el PDF de la actividad de TBox.';$('gs').className='msg';return}
  if(!an||!dur){$('gs').textContent='Indica el nombre de la actividad y la duración.';return}
@@ -279,14 +297,15 @@ $('g2').onclick=async()=>{clearOut();const an=$('an').value.trim(),m=an.match(/A
  let ds,aiSucceeded=false;
  if(rob){const R=ROB;ds=[mk({...R.armado,T:tA,tit:`Clase 1 · Armado · ${tA} min (una sola clase)`,st:[['Inicio',.1,'i'],['Armado',.65,'d'],['Prueba mecánica',.15,'m'],['Cierre',.1,'c']]}),
   mk({...R.programacion,T:tP,tit:`Clase 2 · Programación, pruebas y evaluación · ${tP} min`,st:[['Inicio',.1,'i'],['Programación',.4,'d'],['Pruebas y depuración',.25,'pr'],['Evaluación',.15,'e'],['Cierre',.1,'c']]})]}
- else{ds=[mk({tit:an,st:[['Inicio',.15,'i'],['Desarrollo',.7,'d'],['Cierre',.15,'c']],p:{o:'',i:'',d:'',c:'',r:''},rc:['','','',''],ind:[],
-  f:{nombre:'',descripcion:'',criterios:[],retroalimentacion:''},sn:'',sd:''})]}
+ else{const pk=phaseKey(a),p=PH[pk];ds=[mk({tit:an,st:[['Inicio',.15,'i'],['Desarrollo',.7,'d'],['Cierre',.15,'c']],p,rc:RUB[pk]||RUB.investigar,ind:(IMAP[a.n]||[]).filter(k=>INDS[k]).map(k=>`${k} ${INDS[k]}`),
+  f:{nombre:'Lista de cotejo y ticket de salida',descripcion:'Observación durante la clase y una pregunta de salida para verificar la comprensión. Sirve para retroalimentar y no pondera en la nota.',criterios:(RUB[pk]||RUB.investigar).slice(0,3),retroalimentacion:'devolver comentarios al grupo al cierre y ajustar la próxima clase.'},
+  sn:'Producto de la '+an,sd:'Evidencia entregada en el portafolio de TBox Academy, calificada con la rúbrica.'})]}
  $('gs').textContent='Generando…';$('gs').className='msg';$('g2').disabled=true;
  {try{
-  const base=`Eres asesor pedagógico experto en planificación didáctica y metodología TBox. Basa la respuesta en la guía de actividad NUEVA que se acaba de cargar; es la fuente principal. Usa el resumen del proyecto solo como contexto complementario. No reutilices datos de otros archivos ni inventes materiales o requisitos. Si falta información, indícalo. Responde en español y SOLO JSON válido.\nArchivo de actividad nuevo: ${$('fn2').textContent}\nGUÍA DE LA ACTIVIDAD NUEVA (FUENTE PRINCIPAL): \"\"\"${ACTTXT.slice(0,14000)}\"\"\"\nGrado: ${$('gr').value||'no indicado'}. Docente: ${$('doc').value||'no indicado'}. Actividad: ${an}. Fecha: ${fecha}.`;
-  const pr=rob?`${base} Diseña DOS planificaciones diferenciadas: 1) armado del robot en UNA sola clase de ${tA} minutos; 2) UNA clase de ${tP} minutos para programación, pruebas, depuración y aplicación de evaluación. Responde SOLO JSON: {\"armado\":{${SCH}},\"programacion\":{${SCH}}}`:`${base} Diseña una planificación de UNA clase de ${dur} minutos. Incluye tiempos que sumen exactamente ${dur} minutos y actividades concretas ajustadas al PDF. Devuelve un objeto JSON con estas claves y tipos: ${SCH}.`;
-  const raw=await askAI(pr);const j=JSON.parse(raw.replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,'').trim());
-  if(rob){mergeAI(ds[0],j.armado,false);mergeAI(ds[1],j.programacion,false)}else mergeAI(ds[0],j,true);aiSucceeded=true
+  const base=`Eres asesor pedagógico experto en planificación didáctica y metodología TBox. La guía de actividad NUEVA que se acaba de cargar es la fuente principal. Basa cada decisión en ese documento; usa el resumen del proyecto solo como contexto complementario. No reutilices textos de plantillas ni datos de otros archivos. No inventes materiales, requisitos ni contenidos ausentes: señala las limitaciones dentro de los campos correspondientes. Responde en español y SOLO con JSON válido, sin Markdown ni comentarios.\nOBLIGATORIO: genera contenido nuevo y específico para esta guía en TODOS los campos; especialmente \"inicio\", \"desarrollo\" y \"cierre\". No copies frases de ejemplos o plantillas. Los campos deben ser cadenas no vacías. Si la guía no da detalles suficientes, formula una propuesta prudente y explícita que se ajuste a lo que sí dice el documento.\nArchivo de actividad nuevo: ${$('fn2').textContent}\nResumen del proyecto (solo contexto): \"\"\"${PDFTXT.slice(0,5000)}\"\"\"\nGUÍA DE LA ACTIVIDAD NUEVA (FUENTE PRINCIPAL): \"\"\"${ACTTXT.slice(0,14000)}\"\"\"\nGrado: ${$('gr').value||'no indicado'}. Docente: ${$('doc').value||'no indicado'}. Actividad: ${an}. Fecha: ${fecha}.`;
+  const pr=rob?`${base} Diseña DOS planificaciones diferenciadas: 1) armado del robot en UNA sola clase de ${tA} minutos; 2) UNA clase de ${tP} minutos para programación, pruebas, depuración y aplicación de evaluación. En cada objeto devuelve obligatoriamente las claves: ${SCH}. Los campos inicio, desarrollo y cierre deben ser específicos y distintos en cada clase. Responde SOLO JSON: {\"armado\":{${SCH}},\"programacion\":{${SCH}}}`:`${base} Diseña una planificación de UNA clase de ${dur} minutos. Incluye tiempos que sumen exactamente ${dur} minutos y actividades concretas ajustadas a la guía. Devuelve un objeto JSON con estas claves y tipos: ${SCH}. Asegúrate de que inicio, desarrollo y cierre describan acciones concretas de esta actividad, no frases genéricas ni textos de plantilla.`;
+  const raw=await askAI(pr);const j=parseAIJson(raw);
+  if(rob){mergeAI(ds[0],j.armado);mergeAI(ds[1],j.programacion)}else mergeAI(ds[0],j);aiSucceeded=true
  }catch(e){$('gs').textContent='No se generó la planificación con IA para evitar mostrar una plantilla genérica como si estuviera basada en el PDF. Detalle: '+e.message;$('gs').className='msg';$('g2').disabled=false;return;}}
 
  const B=[{t:'title',x:'Planificación de clase · '+(rob?'Robótica':'Tecnología'),s:`${an} · ${info()} · ${fecha} · ${dur} min por clase`}];
