@@ -29,12 +29,13 @@ button:disabled{opacity:.5;cursor:default}
 .chk{display:flex;gap:8px;align-items:center;margin:12px 0;font-size:.92rem}
 .tabs{display:flex;gap:8px;margin-bottom:12px}.tabs button{flex:1;background:var(--ac2);color:var(--ac)}.tabs button.on{background:var(--ac);color:#fff}
 canvas{max-width:100%;height:auto;border:1px solid var(--bd);border-radius:8px;margin-top:12px}.hide{display:none}select{width:100%;padding:10px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font:inherit}input[type=date]{width:100%;padding:10px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font:inherit}
+body.robo{--ac:#0f766e;--ac2:#e0f5f1}@media(prefers-color-scheme:dark){:root:not([data-theme="light"]) body.robo{--ac:#5eead4;--ac2:#163a36}}
 </style></head>
 <body><main>
 <h1>🎬 Planificador de clases por proyecto</h1>
 <p class="sub">Elige el tipo de planificación, sube el PDF correspondiente y descarga el resultado en PDF o PNG.</p>
 
-<div class="card"><h2>1. ¿Qué quieres planificar?</h2>
+<div class="card"><h2>1. Tipo de proyecto y de planificación</h2><div class="tabs" style="margin:0 0 10px"><button id="k1" class="on">⚙️ Tecnología</button><button id="k2">🤖 Robótica</button></div>
 <div class="tabs" style="margin:0"><button id="t1" class="on">📅 Planificación del trimestre</button><button id="t2">📝 Planificación de la clase del día</button></div></div>
 
 <div id="m1">
@@ -65,6 +66,8 @@ canvas{max-width:100%;height:auto;border:1px solid var(--bd);border-radius:8px;m
 <div class="tri"><label>Semanas del trimestre (se calcula con las fechas)</label><input type="number" id="wk" min="1" max="20" value="12"></div>
 <div class="tri"><label>Cantidad de actividades del trimestre</label><input type="number" id="na" min="1" max="30" value="5"></div>
 <div class="day hide"><label>Duración de la clase (minutos)</label><input type="number" id="du" min="10" max="240" value="45"></div>
+<div class="robf hide"><label>Duración de la clase de armado (min)</label><input type="number" id="tA" min="10" value="90"></div>
+<div class="robf hide"><label>Duración de la clase de programación y pruebas (min)</label><input type="number" id="tP" min="10" value="45"></div>
 </div></div>
 
 <div class="card">
@@ -109,9 +112,17 @@ function wkRange(i){const a=pd($('d1').value),b=pd($('d2').value);if(!a)return''
  return fm(s)+' – '+fm(b&&e>b?b:e);}
 
 // pestañas
-function tab(n){$('m1').classList.toggle('hide',n!=1);$('m2').classList.toggle('hide',n!=2);$('t1').classList.toggle('on',n==1);$('t2').classList.toggle('on',n==2);
+let THEME='tec',MODE=1;
+function vis(){const n=MODE,r=THEME==='rob';
+ $('m1').classList.toggle('hide',n!=1);$('m2').classList.toggle('hide',n!=2);$('t1').classList.toggle('on',n==1);$('t2').classList.toggle('on',n==2);
+ $('k1').classList.toggle('on',!r);$('k2').classList.toggle('on',r);document.body.classList.toggle('robo',r);
  document.querySelectorAll('.tri').forEach(e=>e.classList.toggle('hide',n!=1));document.querySelectorAll('.day').forEach(e=>e.classList.toggle('hide',n!=2));
- $('g1').classList.toggle('hide',n!=1);$('g2').classList.toggle('hide',n!=2);$('cv').classList.add('hide');$('dls').classList.add('hide');$('gs').textContent='';}
+ document.querySelectorAll('.robf').forEach(e=>e.classList.toggle('hide',!(n==2&&r)));
+ $('g1').classList.toggle('hide',n!=1);$('g2').classList.toggle('hide',n!=2);$('g2').textContent=r?'Generar planificación (armado + programación)':'Generar planificación de clase';
+ $('cv').classList.add('hide');$('dls').classList.add('hide');$('gs').textContent='';}
+function tab(n){MODE=n;vis()}
+$('k1').onclick=()=>{THEME='tec';vis()};$('k2').onclick=()=>{THEME='rob';vis()};
+$('du').oninput=()=>{$('tP').value=$('du').value};
 $('t1').onclick=()=>tab(1);$('t2').onclick=()=>tab(2);
 
 // PDF
@@ -142,20 +153,24 @@ function schedule(W,N){const out=[];let prev=-1;
 
 // ---------- motor de dibujo (PNG/PDF) ----------
 const PW=1240,PHT=1754,M=60,CW=PW-2*M,FN='system-ui,Arial,sans-serif';let NAME='planificacion';
-function renderDoc(blocks){const cv=$('cv'),c=cv.getContext('2d');
+const acc=()=>THEME==='rob'?'#0f766e':'#4f46e5';
+let BLOCKS=null;
+function renderDoc(blocks,cv,paged){const c=cv.getContext('2d');
  const wrap=(t,w)=>{const o=[];String(t).split('\n').forEach(p=>{let l='';p.split(' ').forEach(wd=>{const n=l?l+' '+wd:wd;if(c.measureText(n).width>w&&l){o.push(l);l=wd}else l=n});o.push(l)});return o};
- function run(dr){let y=0;const ens=h=>{const o=y%PHT;if(o>0&&o+h>PHT-M)y=(Math.floor(y/PHT)+1)*PHT;if(y%PHT===0)y+=M};
+ function run(dr){let y=0;const ens=h=>{if(!paged)return;const o=y%PHT;if(o>0&&o+h>PHT-M)y=(Math.floor(y/PHT)+1)*PHT;if(y%PHT===0)y+=M};
   for(const b of blocks){
-   if(b.t==='title'){c.font='20px '+FN;if(dr){c.fillStyle='#4f46e5';c.fillRect(0,0,PW,170);c.fillStyle='#fff';c.font='bold 40px '+FN;c.fillText(b.x,M,70);c.font='20px '+FN;wrap(b.s,CW).slice(0,3).forEach((l,i)=>c.fillText(l,M,108+i*26))}y=200}
-   else if(b.t==='h'){ens(80);y+=14;if(dr){c.font='bold 25px '+FN;c.fillStyle='#4f46e5';c.fillText(b.x,M,y+24);c.fillRect(M,y+34,CW,2)}y+=52}
-   else if(b.t==='p'||b.t==='li'){c.font='19px '+FN;const ind=b.t==='li'?24:0;wrap(b.x,CW-ind).forEach((l,i)=>{ens(30);if(dr){c.font='19px '+FN;c.fillStyle='#1b1f2a';if(ind&&i===0)c.fillText('•',M+6,y+20);c.fillText(l,M+ind,y+20)}y+=28});y+=6}
+   if(b.t==='title'){c.font='20px '+FN;if(dr){c.fillStyle=acc();c.fillRect(0,0,PW,170);c.fillStyle='#fff';c.font='bold 40px '+FN;c.fillText(b.x,M,70);c.font='20px '+FN;wrap(b.s,CW).slice(0,3).forEach((l,i)=>c.fillText(l,M,108+i*26))}y=190}
+   else if(b.t==='h'){ens(70);y+=6;if(dr){c.font='bold 25px '+FN;c.fillStyle=acc();c.fillText(b.x,M,y+24);c.fillRect(M,y+34,CW,2)}y+=46}
+   else if(b.t==='band'){ens(120);y+=10;if(dr){c.fillStyle=acc();c.fillRect(M,y,CW,50);c.fillStyle='#fff';c.font='bold 26px '+FN;c.fillText(b.x,M+16,y+34)}y+=64}
+   else if(b.t==='p'||b.t==='li'){c.font='19px '+FN;const ind=b.t==='li'?24:0;wrap(b.x,CW-ind).forEach((l,i)=>{ens(30);if(dr){c.font='19px '+FN;c.fillStyle='#1b1f2a';if(ind&&i===0)c.fillText('•',M+6,y+20);c.fillText(l,M+ind,y+20)}y+=27});y+=2}
    else if(b.t==='tb'){const cw=b.w.map(f=>f*CW);b.rows.forEach((r,ri)=>{const hd=b.hdr&&ri===0;c.font='17px '+FN;
      const cl=r.map((x,i)=>{const o=typeof x==='object'?x:{t:x};return{o,l:wrap(o.t,cw[i]-20)}});const h=Math.max(...cl.map(z=>z.l.length))*24+16;ens(h);
-     if(dr){let x=M;cl.forEach((z,i)=>{const bd=hd||(i===0&&b.fc);c.fillStyle=hd?'#e6e8ff':(z.o.f||(bd?'#f3f4fb':'#fff'));c.fillRect(x,y,cw[i],h);c.strokeStyle='#cfd4e4';c.strokeRect(x,y,cw[i],h);c.fillStyle='#1b1f2a';c.font=(bd?'bold ':'')+'17px '+FN;z.l.forEach((l,k)=>c.fillText(l,x+10,y+26+k*24));x+=cw[i]})}
-     y+=h});y+=14}}
+     if(dr){let x=M;cl.forEach((z,i)=>{const bd=hd||(i===0&&b.fc);c.fillStyle=hd?(THEME==='rob'?'#d9f2ee':'#e6e8ff'):(z.o.f||(bd?'#f3f4fb':'#fff'));c.fillRect(x,y,cw[i],h);c.strokeStyle='#cfd4e4';c.strokeRect(x,y,cw[i],h);c.fillStyle='#1b1f2a';c.font=(bd?'bold ':'')+'17px '+FN;z.l.forEach((l,k)=>c.fillText(l,x+10,y+26+k*24));x+=cw[i]})}
+     y+=h});y+=8}}
   return y}
- const H=run(false);cv.width=PW;cv.height=Math.max(1,Math.ceil(H/PHT))*PHT;c.fillStyle='#fff';c.fillRect(0,0,PW,cv.height);run(true);cv.classList.remove('hide')}
-async function exportPdf(){const cv=$('cv'),pdf=new window.jspdf.jsPDF({unit:'mm',format:'a4'}),n=cv.height/PHT;
+ const H=run(false);cv.width=PW;cv.height=paged?Math.max(1,Math.ceil(H/PHT))*PHT:Math.ceil(H+30);c.fillStyle='#fff';c.fillRect(0,0,PW,cv.height);run(true)}
+function show(B){BLOCKS=B;renderDoc(B,$('cv'),false);$('cv').classList.remove('hide')}
+async function exportPdf(){const cv=document.createElement('canvas');renderDoc(BLOCKS,cv,true);const pdf=new window.jspdf.jsPDF({unit:'mm',format:'a4'}),n=cv.height/PHT;
  for(let i=0;i<n;i++){const t=document.createElement('canvas');t.width=PW;t.height=PHT;t.getContext('2d').drawImage(cv,0,-i*PHT);if(i)pdf.addPage();pdf.addImage(t.toDataURL('image/jpeg',.92),'JPEG',0,0,210,297)}
  return pdf.output('blob')}
 const save=async(fn,data)=>{try{await downloads.save({filename:fn,data})}catch(e){if(e.code!=='declined')$('gs').textContent='No se pudo guardar ('+(e.code||'error')+').'}};
@@ -173,7 +188,7 @@ explorar_m:{f:'Bitácora de prompts y revisión de errores en imágenes y audios
 construir:{f:'Avance del video en la línea de tiempo con lista de cotejo.',s:'Video editado (rúbrica: edición y montaje, calidad audiovisual).'},
 aplicar:{f:'Coevaluación durante el festival de cine.',s:'Reseña final evaluada con la rúbrica del proyecto (5 criterios).'}};
 $('g1').onclick=()=>{const W=+$('wk').value,N=Math.min(+$('na').value,ACTS.length);if(!W||!N){$('gs').textContent='Completa semanas y actividades.';return}
- const acts=ACTS.slice(0,N),sch=schedule(W,N),ev=acts.map(a=>EV[phaseKey(a)]||EV.investigar);
+ const acts=ACTS.slice(0,N),sch=schedule(W,N),ev=acts.map(a=>THEME==='rob'?(EVR[phaseKeyR(a)]||EVR.investigar):(EV[phaseKey(a)]||EV.investigar));
  const last=acts.map((_,k)=>{let m=-1;sch.forEach((w,i)=>{if(w.some(x=>x.k===k))m=i});return m});
  let sums=ev.map((e,k)=>e.s?k:-1).filter(k=>k>=0);if(!sums.length)sums=[N-1];const S=new Set(sums);
  const rows=[['Semana','Fechas','Actividad','Evaluación sumativa sugerida (70 %)','Evaluación formativa sugerida (30 %)']];
@@ -181,13 +196,13 @@ $('g1').onclick=()=>{const W=+$('wk').value,N=Math.min(+$('na').value,ACTS.lengt
   w.filter(o=>S.has(o.k)&&last[o.k]===i).map(o=>ev[o.k].s||'Producto final de la actividad con rúbrica.').join('\n')||'—',
   w.map(o=>o.cont?'Seguimiento y retroalimentación continua.':ev[o.k].f).join('\n')]));
  const a=pd($('d1').value),b=pd($('d2').value),wt=sums.map((_,i)=>Math.floor(70/sums.length)+(i<70%sums.length?1:0));
- const B=[{t:'title',x:'Planificación del trimestre',s:`${info()} · ${a&&b?fm(a)+' al '+fm(b)+' · ':''}${W} semanas`},
+ const B=[{t:'title',x:'Planificación del trimestre · '+(THEME==='rob'?'Robótica':'Tecnología'),s:`${info()} · ${a&&b?fm(a)+' al '+fm(b)+' · ':''}${W} semanas`},
   H1('Calendario semanal y evaluaciones sugeridas'),{t:'tb',hdr:1,fc:1,w:[.1,.13,.2,.32,.25],rows},
   H1('Resumen de calificaciones sugerido'),P1('Las evaluaciones sumativas son las más importantes: valen 70 % de la nota del trimestre.'),
   ...sums.map((k,i)=>L1(`Sumativa (${wt[i]} %), semana ${last[k]+1}: ${ev[k].s||'Producto final de la actividad con rúbrica.'}`)),
   L1(`Evaluaciones formativas (30 %): ${N} registros de seguimiento que se promedian; sirven para retroalimentar y mejorar el proceso.`),
-  P1('Sugerencia: aplica las formativas durante las clases para ajustar la enseñanza y reserva las sumativas para los productos entregados en el portafolio de TBox Academy.')];
- renderDoc(B);done('✔ Planificación del trimestre lista.','Planificacion_trimestre')};
+  P1('Sugerencia: aplica las formativas durante las clases para ajustar la enseñanza y reserva las sumativas para los productos entregados en el portafolio de TBox Academy.'),...(THEME==='rob'?[P1('Robótica: dedica una sola clase de 90 minutos al armado y otra clase a la programación, las pruebas y la evaluación; evalúa cada una por separado.')]:[])];
+ show(B);done('✔ Planificación del trimestre lista.','Planificacion_trimestre')};
 
 // ---------- Clase del día ----------
 let ACTTXT='';
@@ -204,36 +219,66 @@ explorar_m:['Recursos multimedia generados con IA','Pertinencia y revisión de e
 construir:['Edición y montaje','Calidad audiovisual','Recursos multimedia generados con IA','Originalidad y creatividad'],
 aplicar:['Análisis crítico de la película','Recursos multimedia generados con IA','Edición y montaje','Originalidad y creatividad']};
 const LV=['Cumple de forma sobresaliente, con argumentos sólidos y originalidad.','Cumple adecuadamente; hay detalles menores por mejorar.','Cumple parcialmente; requiere mayor desarrollo y ejemplos.','No evidencia el criterio o es insuficiente.'];
-$('g2').onclick=async()=>{const an=$('an').value.trim(),m=an.match(/Actividad\s*(\d+)\s*[:\-–.]?\s*(.*)/i),a=m?{n:+m[1],fase:m[2]||an}:{n:0,fase:an},T=an,dur=+$('du').value;
+const EVR={investigar:{f:'Lista de cotejo de la investigación y del diseño inicial del robot.',s:''},
+armado:{f:'Lista de cotejo del armado (piezas, conexiones y estabilidad).',s:'Prototipo del robot armado (rúbrica de armado).'},
+programacion:{f:'Retos cortos de código y revisión entre pares.',s:'Programa funcionando en el robot (rúbrica de programación).'},
+pruebas:{f:'Registro de pruebas y correcciones (bitácora).',s:''},
+presentacion:{f:'Coevaluación de las demostraciones.',s:'Demostración final del robot con la rúbrica del proyecto.'}};
+function phaseKeyR(a){const t=(a.fase||'').toLowerCase();
+ if(/arm|constru|ensambl|dise/.test(t))return'armado';if(/program|codif/.test(t))return'programacion';
+ if(/prueb|depur|ajust/.test(t))return'pruebas';if(/present|aplic|exhib|demo/.test(t))return'presentacion';return'investigar'}
+const ROB={armado:{p:{o:'Armar el robot siguiendo la guía de la actividad, verificando piezas, conexiones y estabilidad.',i:'Revisar la guía, el inventario de piezas y las normas de seguridad.',d:'Ensamblar por etapas siguiendo el manual; comprobar cada módulo (motores, sensores, batería) y registrar fotos del avance.',c:'Prueba mecánica básica y guardado ordenado del robot y las piezas.',r:'Kit de robótica, manual de armado, herramientas y caja de piezas.',x:{m:'Prueba mecánica básica: comprobar giro de motores, firmeza de uniones y conexiones; corregir antes de guardar.'}},
+ rc:['Diseño y estructura del robot','Precisión en el ensamblaje y las conexiones','Trabajo en equipo y organización','Seguridad y cuidado de los materiales'],
+ q:['¿Qué función cumple cada módulo del robot?','¿Qué problemas aparecieron al ensamblar y cómo los resolvieron?','¿Qué riesgos hay al manipular piezas y baterías?','¿Cómo mejorarías la estructura del robot?'],
+ t:'Subir al portafolio las fotos del avance y el diario de armado.',
+ f:{nombre:'Lista de cotejo del armado',descripcion:'Revisión por etapas durante la clase (piezas, conexiones, estabilidad). Sirve para retroalimentar y no pondera en la nota.',criterios:['Verifica las piezas antes de armar','Sigue el manual por etapas','Comprueba el funcionamiento de cada módulo'],retroalimentacion:'corregir errores de armado antes de pasar a la programación.'},
+ sn:'Prototipo del robot armado',sd:'Robot armado y funcional, evaluado con la rúbrica de armado al finalizar la etapa.'},
+programacion:{p:{o:'Programar el robot para cumplir el reto de la actividad usando secuencias, condicionales y sensores.',i:'Repasar el funcionamiento del robot y el reto de programación.',d:'Escribir el programa por bloques o código; probar en el robot, detectar errores y depurar de forma iterativa.',c:'Demostración breve del programa y reflexión sobre los errores corregidos.',r:'Robot armado, computadora o tableta, software de programación y guía de la actividad.',x:{pr:'Probar el programa en el robot, observar su comportamiento, depurar errores y repetir hasta cumplir el reto.',e:'Aplicar la evaluación sumativa: el equipo demuestra el robot y el docente califica con la rúbrica de programación.'}},
+ rc:['Lógica y secuencia del programa','Uso de sensores y actuadores','Prueba y depuración de errores','Documentación y explicación del código'],
+ q:['¿Qué secuencia lógica sigue tu programa?','¿Cómo usa el robot los sensores para tomar decisiones?','¿Qué error encontraron y cómo lo depuraron?','¿Cómo podrías optimizar el código?'],
+ t:'Guardar el código y subir un video corto de la prueba al portafolio.',
+ f:{nombre:'Retos cortos de código y revisión entre pares',descripcion:'Mini retos durante la clase y revisión del código por un compañero. Sirve para retroalimentar y no pondera en la nota.',criterios:['Escribe la secuencia correcta','Prueba el programa en el robot','Corrige errores con ayuda de los pares'],retroalimentacion:'comentar los errores frecuentes con todo el grupo.'},
+ sn:'Programa funcional del robot',sd:'Programa que cumple el reto con el robot, evaluado con la rúbrica de programación al finalizar.'}};
+const SCH='objetivo, inicio, desarrollo (pasos concretos con tiempos), cierre, recursos, indicadores (arreglo de 2 a 3 indicadores de logro), preguntas (arreglo de 4 preguntas de pensamiento crítico), diferenciacion, tarea, rubrica (arreglo de 4 objetos {criterio, niveles:[4 descriptores: Excelente, Bueno, Regular, Necesita mejorar]}), formativa ({nombre, descripcion, criterios:[3], retroalimentacion}), sumativa ({nombre, descripcion, pesos:[4 números que suman 100, uno por criterio de la rúbrica]})';
+function mergeAI(d,j){if(!j)return;for(const k of['objetivo','inicio','desarrollo','cierre','recursos','diferenciacion','tarea'])if(typeof j[k]==='string'&&j[k])d[k]=j[k];
+ if(Array.isArray(j.preguntas)&&j.preguntas.length)d.preguntas=j.preguntas.map(String);
+ if(!d.ind.length&&Array.isArray(j.indicadores))d.ind=j.indicadores.map(String);
+ if(Array.isArray(j.rubrica)&&j.rubrica.length===4&&j.rubrica.every(r=>r.criterio&&Array.isArray(r.niveles)&&r.niveles.length===4))d.rubrica=j.rubrica.map(r=>({criterio:String(r.criterio),niveles:r.niveles.map(String)}));
+ const f=j.formativa;if(f&&f.nombre&&Array.isArray(f.criterios))d.formativa={nombre:String(f.nombre),descripcion:String(f.descripcion||''),criterios:f.criterios.map(String),retroalimentacion:String(f.retroalimentacion||'')};
+ const u=j.sumativa;if(u&&u.nombre&&Array.isArray(u.pesos)&&u.pesos.length===4&&u.pesos.every(Number.isFinite))d.sumativa={nombre:String(u.nombre),descripcion:String(u.descripcion||''),pesos:u.pesos.map(Number)}}
+function classBlocks(d){const tot=d.sumativa.pesos.reduce((x,y)=>x+y,0);return[
+ H1('Objetivo de aprendizaje'),P1(d.objetivo),...(d.ind.length?[H1('Indicadores de logro'),...d.ind.map(L1)]:[]),
+ H1('Secuencia didáctica'),{t:'tb',hdr:1,fc:1,w:[.16,.1,.74],rows:[['Momento','Min','Descripción'],...d.st.map(([l,mn,k])=>[l,mn,({i:d.inicio,d:d.desarrollo,c:d.cierre})[k]||d.x[k]])]},
+ H1('Preguntas de pensamiento crítico'),...d.preguntas.map(L1),H1('Recursos y materiales'),P1(d.recursos),H1('Atención a la diversidad'),P1(d.diferenciacion),H1('Tarea / evidencia para el portafolio'),P1(d.tarea),
+ H1('Evaluación sugerida: aplicar ambas'),P1('Se sugiere aplicar las dos evaluaciones. La sumativa es la más importante: pesa 70 % de la calificación y se aplica al finalizar para calificar el logro con la rúbrica. La formativa pesa 30 % y se aplica durante la clase para retroalimentar y ajustar la enseñanza.'),
+ H1('Evaluación sumativa (70 %): '+d.sumativa.nombre),P1(d.sumativa.descripcion),
+ H1('Rúbrica (escala 1–4)'),{t:'tb',hdr:1,fc:1,w:[.2,.2,.2,.2,.2],rows:[['Criterio','Excelente (4)','Bueno (3)','Regular (2)','Necesita mejorar (1)'],...d.rubrica.map(r=>[r.criterio,...r.niveles])]},
+ {t:'tb',hdr:1,fc:1,w:[.5,.15,.35],rows:[['Criterio','Peso (pts)','Cálculo'],...d.rubrica.map((r,i)=>[r.criterio,d.sumativa.pesos[i],`Nivel (1–4) ÷ 4 × ${d.sumativa.pesos[i]}`]),['Total',tot,'Suma de los criterios']]},
+ P1('Ejemplo: nivel 3 en un criterio de 25 puntos = 18,75 puntos.'),
+ H1('Evaluación formativa (30 %): '+d.formativa.nombre),P1(d.formativa.descripcion),...d.formativa.criterios.map(L1),P1('Calificación formativa: puntúa cada criterio de 1 a 4 y calcula el promedio (escala 1–4). Retroalimentación: '+d.formativa.retroalimentacion)]}
+$('g2').onclick=async()=>{const an=$('an').value.trim(),m=an.match(/Actividad\s*(\d+)\s*[:\-–.]?\s*(.*)/i),a=m?{n:+m[1],fase:m[2]||an}:{n:0,fase:an},dur=+$('du').value,rob=THEME==='rob';
  if(!ACTTXT){$('gs').textContent='Sube primero el PDF de la actividad de TBox.';$('gs').className='msg';return}
  if(!an||!dur){$('gs').textContent='Indica el nombre de la actividad y la duración.';return}
- const pk=phaseKey(a),p=PH[pk],ini=Math.round(dur*.15),cie=Math.round(dur*.15),rc=RUB[pk]||RUB.investigar;
- const d={a,dur,min:[ini,dur-ini-cie,cie],ind:(IMAP[a.n]||[]).filter(k=>INDS[k]).map(k=>`${k} ${INDS[k]}`),objetivo:p.o,inicio:p.i,desarrollo:p.d,cierre:p.c,recursos:p.r,preguntas:X.q,diferenciacion:X.df,tarea:X.t,
-  fecha:$('dc').value?pd($('dc').value).toLocaleDateString('es',{weekday:'long',day:'numeric',month:'long',year:'numeric'}):'—',
-  rubrica:rc.map(c=>({criterio:c,niveles:LV})),
-  formativa:{nombre:'Lista de cotejo y ticket de salida',descripcion:'Observación durante la clase y una pregunta de salida para verificar la comprensión. Sirve para retroalimentar y no pondera en la nota.',criterios:rc.slice(0,3),retroalimentacion:'devolver comentarios al grupo al cierre y ajustar la próxima clase.'},
-  sumativa:{nombre:'Producto de la '+T,descripcion:'Evidencia entregada en el portafolio de TBox Academy, calificada con la rúbrica.',pesos:[25,25,25,25]}};
+ const fecha=$('dc').value?pd($('dc').value).toLocaleDateString('es',{weekday:'long',day:'numeric',month:'long',year:'numeric'}):'—';
+ const mk=o=>{const tot=o.T||dur;let rest=tot;const st=o.st.map(([l,f,k],i)=>{const mn=i===o.st.length-1?rest:Math.round(tot*f);rest-=mn;return[l,mn,k]});
+  return{tit:o.tit,st,x:o.p.x||{},ind:o.ind||[],objetivo:o.p.o,inicio:o.p.i,desarrollo:o.p.d,cierre:o.p.c,recursos:o.p.r,preguntas:o.q||X.q,diferenciacion:X.df,tarea:o.t||X.t,
+  rubrica:o.rc.map(c=>({criterio:c,niveles:LV})),formativa:o.f,sumativa:{nombre:o.sn,descripcion:o.sd,pesos:[25,25,25,25]},pre:o.pre||[]}};
+ const tA=+$('tA').value||90,tP=+$('tP').value||dur;
+ let ds;
+ if(rob){const R=ROB;ds=[mk({...R.armado,T:tA,tit:`Clase 1 · Armado · ${tA} min (una sola clase)`,st:[['Inicio',.1,'i'],['Armado',.65,'d'],['Prueba mecánica',.15,'m'],['Cierre',.1,'c']]}),
+  mk({...R.programacion,T:tP,tit:`Clase 2 · Programación, pruebas y evaluación · ${tP} min`,st:[['Inicio',.1,'i'],['Programación',.4,'d'],['Pruebas y depuración',.25,'pr'],['Evaluación',.15,'e'],['Cierre',.1,'c']]})]}
+ else{const pk=phaseKey(a),p=PH[pk];ds=[mk({tit:an,st:[['Inicio',.15,'i'],['Desarrollo',.7,'d'],['Cierre',.15,'c']],p,rc:RUB[pk]||RUB.investigar,ind:(IMAP[a.n]||[]).filter(k=>INDS[k]).map(k=>`${k} ${INDS[k]}`),
+  f:{nombre:'Lista de cotejo y ticket de salida',descripcion:'Observación durante la clase y una pregunta de salida para verificar la comprensión. Sirve para retroalimentar y no pondera en la nota.',criterios:(RUB[pk]||RUB.investigar).slice(0,3),retroalimentacion:'devolver comentarios al grupo al cierre y ajustar la próxima clase.'},
+  sn:'Producto de la '+an,sd:'Evidencia entregada en el portafolio de TBox Academy, calificada con la rúbrica.'})]}
  $('gs').textContent='Generando…';$('gs').className='msg';$('g2').disabled=true;
  if($('ai').checked){try{const sm=await CL.use('sample');if(sm){
-  const pr=`Eres asesor pedagógico. Proyecto escolar (resumen):\n"""${PDFTXT.slice(0,2500)}"""\nGuía de TBox de la actividad:\n"""${ACTTXT.slice(0,5000)}"""\nRedacta en español una planificación EXHAUSTIVA para UNA clase de ${dur} minutos de la "${T}", basada en la guía. Responde SOLO con un objeto JSON (sin markdown) con claves: objetivo, inicio, desarrollo (pasos concretos con tiempos), cierre, recursos, indicadores (arreglo de 2 a 3 indicadores de logro), preguntas (arreglo de 4 preguntas de pensamiento crítico), diferenciacion, tarea, rubrica (arreglo de 4 objetos {criterio, niveles:[4 descriptores: Excelente, Bueno, Regular, Necesita mejorar]}), formativa ({nombre, descripcion, criterios:[3], retroalimentacion}), sumativa ({nombre, descripcion, pesos:[4 números que suman 100, uno por criterio de la rúbrica]}).`;
+  const base=`Eres asesor pedagógico. Proyecto escolar (resumen):\n"""${PDFTXT.slice(0,2500)}"""\nGuía de TBox de la actividad:\n"""${ACTTXT.slice(0,5000)}"""\nRedacta en español una planificación EXHAUSTIVA basada en la guía.`;
+  const pr=rob?`${base} Planifica DOS clases de la "${an}": 1) armado del robot en UNA sola clase de ${tA} min; 2) UNA clase de ${tP} min para programación, pruebas y la aplicación de la evaluación. Responde SOLO con JSON (sin markdown): {"armado":{${SCH}},"programacion":{${SCH}}}`:`${base} Es UNA clase de ${dur} minutos de la "${an}". Responde SOLO con un objeto JSON (sin markdown) con claves: ${SCH}.`;
   const r=await sm(pr,{modelTier:'default'});const j=JSON.parse(r.text.replace(/```json|```/g,'').trim());
-  for(const k of ['objetivo','inicio','desarrollo','cierre','recursos','diferenciacion','tarea'])if(typeof j[k]==='string'&&j[k])d[k]=j[k];
-  if(Array.isArray(j.preguntas)&&j.preguntas.length)d.preguntas=j.preguntas.map(String);
-  if(!d.ind.length&&Array.isArray(j.indicadores))d.ind=j.indicadores.map(String);
-  if(Array.isArray(j.rubrica)&&j.rubrica.length===4&&j.rubrica.every(r=>r.criterio&&Array.isArray(r.niveles)&&r.niveles.length===4))d.rubrica=j.rubrica.map(r=>({criterio:String(r.criterio),niveles:r.niveles.map(String)}));
-  const f=j.formativa;if(f&&f.nombre&&Array.isArray(f.criterios))d.formativa={nombre:String(f.nombre),descripcion:String(f.descripcion||''),criterios:f.criterios.map(String),retroalimentacion:String(f.retroalimentacion||'')};
-  const u=j.sumativa;if(u&&u.nombre&&Array.isArray(u.pesos)&&u.pesos.length===4&&u.pesos.every(Number.isFinite))d.sumativa={nombre:String(u.nombre),descripcion:String(u.descripcion||''),pesos:u.pesos.map(Number)}}}
+  if(rob){mergeAI(ds[0],j.armado);mergeAI(ds[1],j.programacion)}else mergeAI(ds[0],j)}}
   catch(e){$('gs').textContent='No se pudo usar Claude; se usó la plantilla base. '}}
- const tot=d.sumativa.pesos.reduce((x,y)=>x+y,0);
- const B=[{t:'title',x:'Planificación de clase',s:`${T} · ${info()} · ${d.fecha} · ${dur} min`},
-  H1('Objetivo de aprendizaje'),P1(d.objetivo),...(d.ind.length?[H1('Indicadores de logro'),...d.ind.map(L1)]:[]),
-  H1('Secuencia didáctica'),{t:'tb',hdr:1,fc:1,w:[.16,.1,.74],rows:[['Momento','Min','Descripción'],['Inicio',d.min[0],d.inicio],['Desarrollo',d.min[1],d.desarrollo],['Cierre',d.min[2],d.cierre]]},
-  H1('Preguntas de pensamiento crítico'),...d.preguntas.map(L1),H1('Recursos y materiales'),P1(d.recursos),H1('Atención a la diversidad'),P1(d.diferenciacion),H1('Tarea / evidencia para el portafolio'),P1(d.tarea),
-  H1('Evaluación sugerida: aplicar ambas'),P1('Se sugiere aplicar las dos evaluaciones. La sumativa es la más importante: pesa 70 % de la calificación de la actividad y se aplica al finalizar para calificar el logro con la rúbrica. La formativa pesa 30 % y se aplica durante la clase para retroalimentar y ajustar la enseñanza.'),
-  H1('Evaluación sumativa (70 %): '+d.sumativa.nombre),P1(d.sumativa.descripcion),
-  H1('Rúbrica (escala 1–4)'),{t:'tb',hdr:1,fc:1,w:[.2,.2,.2,.2,.2],rows:[['Criterio','Excelente (4)','Bueno (3)','Regular (2)','Necesita mejorar (1)'],...d.rubrica.map(r=>[r.criterio,...r.niveles])]},
-  {t:'tb',hdr:1,fc:1,w:[.5,.15,.35],rows:[['Criterio','Peso (pts)','Cálculo'],...d.rubrica.map((r,i)=>[r.criterio,d.sumativa.pesos[i],`Nivel (1–4) ÷ 4 × ${d.sumativa.pesos[i]}`]),['Total',tot,'Suma de los criterios']]},
-  P1('Ejemplo: nivel 3 en un criterio de 25 puntos = 18,75 puntos.'),
-  H1('Evaluación formativa (30 %): '+d.formativa.nombre),P1(d.formativa.descripcion),...d.formativa.criterios.map(L1),P1('Calificación formativa: puntúa cada criterio de 1 a 4 y calcula el promedio (escala 1–4). Retroalimentación: '+d.formativa.retroalimentacion)];
- renderDoc(B);$('g2').disabled=false;done($('gs').textContent+'✔ Planificación de clase lista.','Planificacion_clase_'+(a.n||'actividad'))};
+ const B=[{t:'title',x:'Planificación de clase · '+(rob?'Robótica':'Tecnología'),s:`${an} · ${info()} · ${fecha} · ${dur} min por clase`}];
+ if(rob)B.push(H1('Distribución sugerida del tiempo'),L1(`Clase 1 · Armado: una sola clase de ${tA} min (inicio, armado, prueba mecánica y cierre).`),L1(`Clase 2 · Programación, pruebas y evaluación: una clase de ${tP} min (programación, pruebas y depuración, y aplicación de la evaluación).`),P1('Cada clase tiene su evaluación sumativa (70 %) y su evaluación formativa (30 %). La sumativa del armado se califica al final de la clase 1; la de programación, durante la clase 2.'));
+ ds.forEach((d,i)=>{if(rob)B.push({t:'band',x:d.tit,np:i>0});B.push(...classBlocks(d))});
+ show(B);$('g2').disabled=false;done($('gs').textContent+'✔ Planificación de clase lista.','Planificacion_clase_'+(rob?'robotica_':'')+(a.n||'actividad'))};
 </script></body></html>
